@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    // Make sure baseUrl is completely removed from this file
+    
+    "paths": {
+      "@/*": ["./src/*"] 
+    }
+  }
+}
