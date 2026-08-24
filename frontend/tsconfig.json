@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    // Make sure baseUrl is completely removed from this file
+    // Make sure baseUrfl is completely removed from this file
+    "jsx":"react-jsx",
     
     "paths": {
       "@/*": ["./src/*"] 
