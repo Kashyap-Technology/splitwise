@@ -2,6 +2,7 @@
   "compilerOptions": {
     // Make sure baseUrfl is completely removed from this file
     "jsx":"react-jsx",
+    "types": ["vite/client"],
     
     "paths": {
       "@/*": ["./src/*"] 

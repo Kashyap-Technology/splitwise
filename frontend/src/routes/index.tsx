@@ -38,12 +38,9 @@ function IndexComponent() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Button size='lg' variant="ghost" className="cursor-pointer">
-              Login
-            </Button>
-            <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer px-5">
-              Sign Up
-            </Button>
+            <Button size='lg' variant="ghost" className="cursor-pointer" render={<Link to='/login'>Login</Link>}/>
+            <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer px-5" render={<Link to='/signup'>Sign Up</Link>}/>
+              
           </div>
         </div>
       </header>
