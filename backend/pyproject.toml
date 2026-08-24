@@ -1,0 +1,24 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "boto3>=1.43.62",
+    "dj-database-url>=3.1.2",
+    "django>=6.0.7",
+    "django-anymail>=15.0",
+    "django-cors-headers>=4.9.0",
+    "django-silk>=5.5.0",
+    "djangorestframework>=3.17.1",
+    "djangorestframework-simplejwt>=5.5.1",
+    "pillow>=12.3.0",
+    "psycopg2-binary>=2.9.12",
+    "python-decouple>=3.8",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.22",
+]

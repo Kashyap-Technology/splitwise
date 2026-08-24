@@ -1,0 +1,23 @@
+[tools]
+python = "3.12"
+uv = "latest"       
+pre-commit = "latest"
+node = "22"
+
+[tasks.dev]
+depends = [
+    "backend:dev",
+    "frontend:dev",
+]
+
+# backend 
+[tasks."backend:dev"]
+description = "Run Django backend server"
+dir = "backend"
+run = "uv run python manage.py runserver"
+
+# frontend
+[tasks."frontend:dev"]
+description = "Run React frontend client"
+dir = "frontend"
+run = "npm run dev"

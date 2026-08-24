@@ -1,0 +1,227 @@
+import logging
+
+from django.contrib.auth.password_validation import validate_password
+from rest_framework import serializers, status
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.generics import CreateAPIView
+
+from apps.core.api.responses import api_success
+from apps.core.models import AuditLog
+from apps.core.services import create_audit_log
+from apps.users.selectors import list_user
+from apps.users.services import (
+    create_user,
+    delete_user,
+    login_user,
+    reset_user_password,
+    set_jwt_cookies,
+    update_user,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class UserCreateAPi(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    class InputSerializer(serializers.Serializer):
+        email = serializers.EmailField()
+        password = serializers.CharField(write_only=True)
+        name = serializers.CharField()
+        phone = serializers.CharField(required=False, allow_blank=True)
+        profile_image = serializers.ImageField(required=False, allow_null=True)
+
+    class OutputSerializer(serializers.Serializer):
+        id = serializers.IntegerField()
+        email = serializers.EmailField()
+
+    def post(self, request):
+        serializer = self.InputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = create_user(**serializer.validated_data)
+
+        return api_success(
+            data=self.OutputSerializer(user).data,
+            message="User Created Successfully",
+            status_code=status.HTTP_201_CREATED,
+        )
+
+
+class UserUpdateApi(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    class InputSerializer(serializers.Serializer):
+        name = serializers.CharField()
+        phone = serializers.CharField(required=False, allow_blank=True)
+        profile_image = serializers.ImageField(required=False, allow_null=True)
+
+    class OutputSerializer(serializers.Serializer):
+        id = serializers.IntegerField()
+        email = serializers.EmailField()
+
+    def patch(self, request):
+        serializer = self.InputSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        updated_user = update_user(user=request.user, **serializer.validated_data)
+
+        return api_success(
+            data=self.OutputSerializer(updated_user).data,
+            message="User updated Successfully",
+            status_code=status.HTTP_201_CREATED,
+        )
+
+
+class UserDeleteApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        delete_user(user=request.user)
+
+        response = api_success(
+            data=None,
+            message="User Deleted Successfully.",
+            status_code=status.HTTP_200_OK,
+        )
+
+        response.delete_cookie("access_token")
+        response.delete_cookie("response_token")
+
+        return response
+
+
+class UserLoginAPi(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    class InputSerializer(serializers.Serializer):
+        email = serializers.EmailField()
+        password = serializers.CharField(write_only=True)
+
+    class OutputSerializer(serializers.Serializer):
+        id = serializers.IntegerField()
+        email = serializers.EmailField()
+        name = serializers.CharField()
+
+    def post(self, request):
+        serializer = self.InputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        result = login_user(**serializer.validated_data)
+
+        # get the user
+        user = result["user"]
+
+        response = api_success(
+            data=self.OutputSerializer(user).data,
+            message="User LoggedIn Successfully",
+            status_code=status.HTTP_200_OK,
+        )
+
+        return set_jwt_cookies(
+            response=response,
+            refresh_token=result["refresh"],
+            access_token=result["access"],
+        )
+
+
+class UserMeApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    class OutputSerializer(serializers.Serializer):
+        id = serializers.IntegerField()
+        email = serializers.EmailField()
+        name = serializers.CharField()
+
+    def get(self, request):
+        return api_success(
+            data=self.OutputSerializer(request.user).data,
+            message="Currently LoggedIn User",
+            status_code=status.HTTP_200_OK,
+        )
+
+
+class UserListApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    class OutputSerializer(serializers.Serializer):
+        id = serializers.IntegerField()
+        name = serializers.CharField()
+        email = serializers.EmailField()
+
+    def get(self, request):
+        users = list_user()
+
+        return api_success(
+            data=self.OutputSerializer(users, many=True).data,
+            message="Sucessufly Fetched users",
+            status_code=status.HTTP_200_OK,
+        )
+
+
+class UserLogoutApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        create_audit_log(
+            user=request.user,
+            action=AuditLog.AuditAction.LOGOUT,
+            model_name=AuditLog.ModelName.USER,
+            message="User logged out successfully.",
+        )
+
+        response = self.response = api_success(
+            data=None,
+            message="User Logout Successfully.",
+            status_code=status.HTTP_200_OK,
+        )
+
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
+
+        return response
+
+
+class UserPasswordResetApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    class InputSerializer(serializers.Serializer):
+        old_password = serializers.CharField(write_only=True)
+        new_password = serializers.CharField(
+            write_only=True, validators=[validate_password]
+        )
+
+        def validate_old_password(self, value):
+            user = self.context["request"].user
+            if not user.check_password(value):
+                raise serializers.ValidationError("Old password is incorrect..")
+            return value
+
+        def validate(self, attrs):
+            if attrs["old_password"] == attrs["new_password"]:
+                raise serializers.ValidationError(
+                    "Old Password and New password can't be same."
+                )
+            return attrs
+
+    def post(self, request):
+        serializer = self.InputSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        new_password = serializer.validated_data["new_password"]
+
+        reset_user_password(user=request.user, new_password=new_password)
+
+        return api_success(
+            data=None,
+            message="User Password Updated Success.",
+            status_code=status.HTTP_200_OK,
+        )

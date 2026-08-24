@@ -1,0 +1,29 @@
+repos:
+  # backend
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.0
+    hooks:
+      # linter and sortter
+      - id: ruff
+        args: [--fix]
+        files: ^capstone/backend/
+      # formatter
+      - id: ruff-format
+        files: ^capstone/backend/
+
+  # fronted
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint 
+        entry: bash -c "cd capstone/frontend && npm run lint"
+        language: system
+        pass_filenames: false
+        files: ^capstone/frontend/
+
+      - id: prettier
+        name: prettier
+        entry: bash -c "cd capstone/frontend && npm run format"
+        language: system
+        pass_filenames: false
+        files: ^capstone/frontend/

@@ -1,0 +1,23 @@
+from django.urls import path
+
+from apps.users.views import (
+    UserCreateAPi,
+    UserDeleteApi,
+    UserListApi,
+    UserLoginAPi,
+    UserLogoutApi,
+    UserMeApi,
+    UserPasswordResetApi,
+    UserUpdateApi,
+)
+
+urlpatterns = [
+    path("register/", UserCreateAPi.as_view(), name="register"),
+    path("update/", UserUpdateApi.as_view(), name="update"),
+    path("delete/", UserDeleteApi.as_view(), name="delete"),
+    path("login/", UserLoginAPi.as_view(), name="login"),
+    path("logout/", UserLogoutApi.as_view(), name="logout"),
+    path("password/reset/", UserPasswordResetApi.as_view(), name="password-reset"),
+    path("list/", UserListApi.as_view()),
+    path("me/", UserMeApi.as_view(), name="me"),
+]
