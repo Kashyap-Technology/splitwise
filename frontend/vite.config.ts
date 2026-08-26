@@ -5,6 +5,9 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import path from 'path' // 1. Import the path module
 
 export default defineConfig({
+  server:{
+    port:3000
+  },
   plugins: [
     tanstackRouter({
       routesDirectory: './src/routes', // Fixed a tiny typo here too!
