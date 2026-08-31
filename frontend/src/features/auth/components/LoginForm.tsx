@@ -38,7 +38,7 @@ export function LoginForm() {
     mutate(data, {
       onSuccess: () => {
         //navigate to sucessfule login
-        navigate({ to: "/" });
+        navigate({ to: "/dashboard" });
       },
     });
   };

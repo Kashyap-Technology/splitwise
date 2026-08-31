@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import {useQueryClient, useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { LoginFormValues } from "../schemas/loginSchema";
 import { api } from "@/api/client";
@@ -11,12 +11,14 @@ async function loginApi(credentials: LoginFormValues) {
 
 export function useLoginMutation() {
   const navigate = useNavigate();
+  const queryClient=useQueryClient()
 
   return useMutation({
     mutationFn: loginApi,
     onSuccess: (data) => {
       console.log("Logged in user:", data.user);
-      navigate({ to: "/" });
+      queryClient.setQueryData(['me'],data.user)
+      navigate({ to: "/dashboard" });
     },
   });
 }

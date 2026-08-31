@@ -1,14 +1,12 @@
 import * as React from "react";
-import { Outlet, createRootRoute } from "@tanstack/react-router";
+import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 
-export const Route = createRootRoute({
-  component: RootComponent,
-});
-
-function RootComponent() {
-  return (
-    <React.Fragment>
-      <Outlet />
-    </React.Fragment>
-  );
+export interface AuthContext {
+  user: { id: string; email: string } | null
+  isAuthenticated: boolean
+  isLoading:boolean
 }
+
+export const Route = createRootRouteWithContext<{ auth: AuthContext }>()({
+  component: () => <Outlet />
+})
