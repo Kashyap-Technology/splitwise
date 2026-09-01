@@ -1,6 +1,6 @@
 import {useQuery} from '@tanstack/react-query'
 import { api } from '@/api/client'
-import { GroupListResponse } from '../types/group.types'
+import { GroupListResponse,GroupMemberResponse } from '../types/group.types'
 
 
 
@@ -12,4 +12,16 @@ export function useGroupQuery(){
             return res.data.data??[]
         }
     })
+}
+
+export function useGroupMemberQuery(){
+    return useQuery<GroupMemberResponse[]>({
+        queryKey:['group-members'],
+        queryFn:async()=>{
+            const res=await api.get('groups/5/members/')
+            return res.data.data??[]
+        }
+
+    })
+
 }

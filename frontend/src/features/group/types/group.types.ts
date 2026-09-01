@@ -22,3 +22,10 @@ export interface GroupListResponse {
         name: string
     }
 }
+
+export interface GroupMemberResponse{
+    id:number
+    name:string
+    email:string
+    role:string
+}

@@ -6,6 +6,7 @@ export const Route = createFileRoute("/signup")({
     if (context.auth?.isAuthenticated) {
       throw redirect({
         to: "/dashboard",
+        search: { redirect: location.href },
       });
     }
   },

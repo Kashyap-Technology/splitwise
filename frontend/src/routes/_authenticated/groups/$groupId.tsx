@@ -1,28 +1,39 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Plus,
-  Receipt,
-  Wallet,
-  Utensils,
   Car,
   Landmark,
-  Lightbulb,
+  Receipt,
+  Utensils,
+  Wallet,
+  Tag,
 } from 'lucide-react'
+import { useState } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+
+import {
+  CreateExpenseInput,
+  expenseSchema,
+} from '@/features/expense/schemas/expenseSchema'
+import { useGroupMemberQuery } from '@/features/group/api/useGroupsQuery'
+import { useCreateExpenseMutation } from '@/features/expense/api/useExpenseMutation'
+import { useExpenseQuery ,useExpenseCategoryQuery} from '@/features/expense/api/useExpenseQuery'
+
+import { ExpenseFormDialog } from './components/ExpenseFormDialog'
+import { GroupBalancesCard } from './components/GroupBalancesCard'
+import { GroupHeader } from './components/GroupHeader'
+import { SummaryCard } from './components/SummaryCard'
 
 export const Route = createFileRoute('/_authenticated/groups/$groupId')({
   component: GroupDetailComponent,
 })
 
-// Mock API Fetcher (Replace with your actual API call)
 const fetchGroupDetails = async (groupId: string) => {
-  // Simulating API delay
   await new Promise((resolve) => setTimeout(resolve, 400))
 
   return {
@@ -31,42 +42,14 @@ const fetchGroupDetails = async (groupId: string) => {
     description: 'This is a trip to kasthamandap',
     totalSpend: 2450.0,
     totalExpensesCount: 18,
-    userBalance: -125.5, // Negative = owes, Positive = lent
+    userBalance: -125.5,
     settlePeopleCount: 2,
-    expenses: [
-      {
-        id: '1',
-        title: 'Dinner at Patan',
-        date: 'Oct 12',
-        paidBy: 'Sarah',
-        icon: Utensils,
-        totalAmount: 180.0,
-        yourAmount: -45.0, // Owe
-      },
-      {
-        id: '2',
-        title: 'Taxi to Temple',
-        date: 'Oct 11',
-        paidBy: 'You',
-        icon: Car,
-        totalAmount: 24.0,
-        yourAmount: 18.0, // Lent
-      },
-      {
-        id: '3',
-        title: 'Museum Tickets',
-        date: 'Oct 11',
-        paidBy: 'Mike',
-        icon: Landmark,
-        totalAmount: 60.0,
-        yourAmount: -15.0, // Owe
-      },
-    ],
     balances: [
       {
         id: 'u1',
         name: 'Sarah',
-        avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+        avatarUrl:
+          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
         statusText: 'Gets back',
         amount: 85.5,
         statusType: 'credit',
@@ -74,7 +57,8 @@ const fetchGroupDetails = async (groupId: string) => {
       {
         id: 'u2',
         name: 'Mike',
-        avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+        avatarUrl:
+          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
         statusText: 'Gets back',
         amount: 40.0,
         statusType: 'credit',
@@ -82,7 +66,8 @@ const fetchGroupDetails = async (groupId: string) => {
       {
         id: 'u3',
         name: 'Emma',
-        avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
+        avatarUrl:
+          'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
         statusText: 'Settled up',
         amount: 0,
         statusType: 'settled',
@@ -91,87 +76,131 @@ const fetchGroupDetails = async (groupId: string) => {
   }
 }
 
+// Helper to resolve an icon based on category name
+const getCategoryIcon = (categoryName?: string) => {
+  const normalized = categoryName?.toLowerCase() || ''
+  if (normalized.includes('food') || normalized.includes('dinner')) return Utensils
+  if (normalized.includes('travel') || normalized.includes('taxi')) return Car
+  if (normalized.includes('sightseeing') || normalized.includes('museum')) return Landmark
+  return Receipt
+}
+
 function GroupDetailComponent() {
   const { groupId } = Route.useParams()
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
-  const { data: group, isLoading } = useQuery({
+  const { data: group, isLoading: isLoadingGroup } = useQuery({
     queryKey: ['group', groupId],
     queryFn: () => fetchGroupDetails(groupId),
   })
 
-  if (isLoading) {
-    return <GroupDetailSkeleton />
+  const { data: expenses = [], isLoading: isLoadingExpenses } = useExpenseQuery()
+  const { data: categories, isLoading: isLoadingCategories } = useExpenseCategoryQuery()
+  const { data: members, isLoading: isLoadingMembers } = useGroupMemberQuery()
+  const { mutate, isPending } = useCreateExpenseMutation()
+
+  const form = useForm<CreateExpenseInput>({
+    resolver: zodResolver(expenseSchema) as any,
+    defaultValues: {
+      title: '',
+      amount: undefined,
+      category_id: undefined,
+      split_type: 'equal',
+      payers: [],
+      participants: [],
+    },
+  })
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+  } = form
+
+  const watchedAmount = useWatch({ control, name: 'amount' }) || 0
+
+  const onSubmit = (data: CreateExpenseInput) => {
+    const payerCount = data.payers.length
+    const share =
+      payerCount > 0 ? Number((data.amount / payerCount).toFixed(2)) : 0
+
+    const payload = {
+      ...data,
+      payers: data.payers.map((payer) => ({
+        user_id: Number(payer.user_id),
+        amount_paid: String(share),
+      })),
+      participants: data.participants.map((participant) => ({
+        user_id: Number(participant.user_id),
+      })),
+    }
+
+    mutate(
+      { groupId, data: payload },
+      {
+        onSuccess: () => {
+          setIsDialogOpen(false)
+          reset()
+        },
+        onError: (err) => {
+          console.error('Failed to create expense:', err)
+        },
+      }
+    )
   }
 
+  if (isLoadingGroup) return <GroupDetailSkeleton />
   if (!group) return <div>Group not found</div>
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 bg-slate-50/50 min-h-screen">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-            {group.name}
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">{group.description}</p>
-        </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 h-11 flex items-center gap-2 font-medium shadow-sm shrink-0">
-          <Plus className="w-4 h-4" />
-          <span>Add Expense</span>
-        </Button>
-      </div>
+      <GroupHeader
+        name={group.name}
+        description={group.description}
+        onAddExpense={() => setIsDialogOpen(true)}
+      />
 
-      {/* Summary Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Total Group Spend Card */}
-        <Card className="rounded-3xl border-0 shadow-sm bg-gradient-to-br from-indigo-50/60 to-purple-50/40 p-6 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-slate-500 uppercase">
-              <Receipt className="w-4 h-4 text-slate-400" />
-              <span>Total Group Spend</span>
-            </div>
-            <div className="mt-4 text-4xl font-extrabold text-slate-900">
-              ${group.totalSpend.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </div>
-          </div>
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200/50 text-xs">
-            <span className="text-slate-500">Across {group.totalExpensesCount} expenses</span>
-            <button className="text-blue-600 font-semibold hover:underline">
-              View breakdown
-            </button>
-          </div>
-        </Card>
+        <SummaryCard
+          icon={<Receipt className="w-4 h-4 text-slate-400" />}
+          label="Total Group Spend"
+          value={group.totalSpend}
+          meta={`Across ${expenses.length || group.totalExpensesCount} expenses`}
+          actionLabel="View breakdown"
+        />
 
-        {/* Your Balance Card */}
-        <Card className="rounded-3xl border-0 shadow-sm bg-gradient-to-br from-indigo-50/60 to-purple-50/40 p-6 relative overflow-hidden flex flex-col justify-between">
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-slate-500 uppercase">
-              <Wallet className="w-4 h-4 text-slate-400" />
-              <span>Your Balance</span>
-            </div>
-            <div className="mt-3">
-              <span className="text-sm font-semibold text-slate-500">You owe</span>
-              <div className="text-4xl font-extrabold text-orange-600 mt-0.5">
-                ${Math.abs(group.userBalance).toFixed(2)}
-              </div>
-            </div>
-          </div>
-
-          {/* Decorative Wallet Icon Background */}
-          <Wallet className="absolute right-4 bottom-2 w-28 h-28 text-orange-200/40 pointer-events-none" />
-
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200/50 text-xs relative z-10">
-            <span className="text-slate-500">To {group.settlePeopleCount} people</span>
-            <button className="text-blue-600 font-semibold hover:underline">
-              Settle balances
-            </button>
-          </div>
-        </Card>
+        <div className="relative overflow-hidden">
+          <SummaryCard
+            icon={<Wallet className="w-4 h-4 text-slate-400" />}
+            label="Your Balance"
+            value={Math.abs(group.userBalance)}
+            valueClassName="text-orange-600"
+            prefixText="You owe"
+            meta={`To ${group.settlePeopleCount} people`}
+            actionLabel="Settle balances"
+          />
+          <Wallet className="absolute right-4 bottom-4 w-28 h-28 text-orange-200/40 pointer-events-none" />
+        </div>
       </div>
 
-      {/* Main Content Layout */}
+      <ExpenseFormDialog
+        isOpen={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        form={form}
+        categories={categories}
+        isLoadingCategories={isLoadingCategories}
+        members={members}
+        isLoadingMembers={isLoadingMembers}
+        watchedAmount={watchedAmount}
+        isPending={isPending}
+        onSubmit={handleSubmit(onSubmit)}
+        onCancel={() => {
+          setIsDialogOpen(false)
+          reset()
+        }}
+      />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Left Column (Expenses Tab & List) */}
         <div className="lg:col-span-2 space-y-6">
           <Tabs defaultValue="expenses" className="w-full">
             <TabsList className="bg-transparent p-0 h-auto gap-8 border-b border-slate-200 w-full justify-start rounded-none">
@@ -179,7 +208,7 @@ function GroupDetailComponent() {
                 value="expenses"
                 className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-0 pb-3 font-semibold text-slate-500 data-[state=active]:text-blue-600 text-sm"
               >
-                Expenses
+                Expenses ({expenses.length})
               </TabsTrigger>
               <TabsTrigger
                 value="balances"
@@ -191,67 +220,69 @@ function GroupDetailComponent() {
                 value="members"
                 className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-0 pb-3 font-semibold text-slate-500 data-[state=active]:text-blue-600 text-sm"
               >
-                Members (4)
+                Members ({members?.length || 0})
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="expenses" className="mt-6 space-y-3">
-              {group.expenses.map((expense) => {
-                const IconComponent = expense.icon
-                const isOwe = expense.yourAmount < 0
+              {isLoadingExpenses ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-20 w-full rounded-2xl" />
+                  <Skeleton className="h-20 w-full rounded-2xl" />
+                </div>
+              ) : expenses.length === 0 ? (
+                <Card className="p-8 text-center text-slate-500 rounded-2xl border-0 shadow-sm bg-white">
+                  No expenses added yet. Click "Add Expense" to get started!
+                </Card>
+              ) : (
+                expenses.map((expense) => {
+                  const IconComponent = getCategoryIcon(expense.category_name)
+                  const parsedAmount = Number(expense.amount) || 0
 
-                return (
-                  <Card
-                    key={expense.id}
-                    className="rounded-2xl border-0 shadow-sm bg-white hover:shadow-md transition-shadow"
-                  >
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-slate-100 rounded-full text-slate-600 shrink-0">
-                          <IconComponent className="w-5 h-5" />
+                  return (
+                    <Card
+                      key={expense.id}
+                      className="rounded-2xl border-0 shadow-sm bg-white hover:shadow-md transition-shadow"
+                    >
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 bg-slate-100 rounded-full text-slate-600 shrink-0">
+                            <IconComponent className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-sm">
+                              {expense.title}
+                            </h4>
+                            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5 capitalize">
+                              <Tag className="w-3 h-3 inline" />
+                              {expense.category_name || 'Uncategorized'} • Split: {expense.split_type}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-bold text-slate-900 text-sm">
-                            {expense.title}
-                          </h4>
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            {expense.date} • Paid by {expense.paidBy}
-                          </p>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-6 text-right">
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                            Total
-                          </span>
-                          <span className="font-bold text-slate-900 text-sm">
-                            ${expense.totalAmount.toFixed(2)}
-                          </span>
+                        <div className="flex items-center gap-6 text-right">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                              Total
+                            </span>
+                            <span className="font-bold text-slate-900 text-sm">
+                              ${parsedAmount.toFixed(2)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="min-w-[70px]">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                            {isOwe ? 'You owe' : 'You lent'}
-                          </span>
-                          <span
-                            className={`font-bold text-sm ${
-                              isOwe ? 'text-orange-600' : 'text-emerald-600'
-                            }`}
-                          >
-                            ${Math.abs(expense.yourAmount).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+                      </CardContent>
+                    </Card>
+                  )
+                })
+              )}
 
-              <div className="pt-4 text-center">
-                <button className="text-sm font-semibold text-blue-600 hover:underline">
-                  Load more expenses
-                </button>
-              </div>
+              {expenses.length > 0 && (
+                <div className="pt-4 text-center">
+                  <button className="text-sm font-semibold text-blue-600 hover:underline">
+                    Load more expenses
+                  </button>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="balances" className="mt-6">
@@ -268,87 +299,33 @@ function GroupDetailComponent() {
           </Tabs>
         </div>
 
-        {/* Right Sidebar (Group Balances & Pro Tip) */}
-        <div className="space-y-6">
-          {/* Group Balances Sidebar Card */}
-          <Card className="rounded-3xl border-0 shadow-sm bg-slate-100/70 p-6 space-y-6">
-            <h3 className="font-bold text-slate-900 text-base">Group Balances</h3>
-
-            <div className="space-y-4">
-              {group.balances.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between text-xs"
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src={member.avatarUrl} />
-                      <AvatarFallback>{member.name[0]}</AvatarFallback>
-                    </Avatar>
-                    <span className="font-semibold text-slate-800">
-                      {member.name}
-                    </span>
-                  </div>
-
-                  <div className="text-right">
-                    {member.statusType === 'settled' ? (
-                      <span className="text-slate-400 text-[11px]">Settled up</span>
-                    ) : (
-                      <>
-                        <span className="text-slate-400 text-[10px] block">
-                          {member.statusText}
-                        </span>
-                        <span className="font-bold text-emerald-600">
-                          ${member.amount.toFixed(2)}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <Button
-              variant="outline"
-              className="w-full rounded-2xl border-blue-600 text-blue-600 hover:bg-blue-50 font-semibold h-11 text-xs"
-            >
-              Record a Payment
-            </Button>
-          </Card>
-
-          {/* Pro Tip Card */}
-          <Card className="rounded-3xl border-0 shadow-sm bg-blue-50/70 p-5 flex items-start gap-3">
-            <div className="p-2 bg-blue-100 rounded-xl text-blue-600 shrink-0">
-              <Lightbulb className="w-4 h-4" />
-            </div>
-            <div className="space-y-1">
-              <h4 className="font-bold text-slate-900 text-xs">Pro Tip</h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                Connect your bank account to settle balances directly through Splitsy
-                without switching apps.
-              </p>
-            </div>
-          </Card>
-        </div>
+        <GroupBalancesCard balances={group.balances} />
       </div>
     </div>
   )
 }
 
-// Skeleton state while query is loading
 function GroupDetailSkeleton() {
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8">
+    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 min-h-screen">
       <div className="flex justify-between items-center">
         <div className="space-y-2">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-8 w-64 rounded-lg" />
+          <Skeleton className="h-4 w-48 rounded-lg" />
         </div>
-        <Skeleton className="h-10 w-32 rounded-full" />
+        <Skeleton className="h-11 w-36 rounded-full" />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Skeleton className="h-40 rounded-3xl" />
         <Skeleton className="h-40 rounded-3xl" />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-4">
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-20 w-full rounded-2xl" />
+          <Skeleton className="h-20 w-full rounded-2xl" />
+        </div>
+        <Skeleton className="h-64 rounded-3xl" />
       </div>
     </div>
   )
