@@ -19,7 +19,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AuthenticatedCategoriesRouteImport } from './routes/_authenticated/categories'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedExpensesRouteImport } from './routes/_authenticated/expenses'
-import { Route as AuthenticatedFriendsRouteImport } from './routes/_authenticated/friends'
+import { Route as AuthenticatedSettlementRouteImport } from './routes/_authenticated/settlement'
 import { Route as AuthenticatedGroupsIndexRouteImport } from './routes/_authenticated/groups/index'
 import { Route as AuthenticatedGroupsGroupIdRouteImport } from './routes/_authenticated/groups/$groupId'
 
@@ -72,9 +72,9 @@ const AuthenticatedExpensesRoute = AuthenticatedExpensesRouteImport.update({
   path: '/expenses',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedFriendsRoute = AuthenticatedFriendsRouteImport.update({
-  id: '/friends',
-  path: '/friends',
+const AuthenticatedSettlementRoute = AuthenticatedSettlementRouteImport.update({
+  id: '/settlement',
+  path: '/settlement',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedGroupsIndexRoute =
@@ -100,7 +100,7 @@ export interface FileRoutesByFullPath {
   '/categories': typeof AuthenticatedCategoriesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/expenses': typeof AuthenticatedExpensesRoute
-  '/friends': typeof AuthenticatedFriendsRoute
+  '/settlement': typeof AuthenticatedSettlementRoute
   '/groups/$groupId': typeof AuthenticatedGroupsGroupIdRoute
   '/groups/': typeof AuthenticatedGroupsIndexRoute
 }
@@ -114,7 +114,7 @@ export interface FileRoutesByTo {
   '/categories': typeof AuthenticatedCategoriesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/expenses': typeof AuthenticatedExpensesRoute
-  '/friends': typeof AuthenticatedFriendsRoute
+  '/settlement': typeof AuthenticatedSettlementRoute
   '/groups/$groupId': typeof AuthenticatedGroupsGroupIdRoute
   '/groups': typeof AuthenticatedGroupsIndexRoute
 }
@@ -130,7 +130,7 @@ export interface FileRoutesById {
   '/_authenticated/categories': typeof AuthenticatedCategoriesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/expenses': typeof AuthenticatedExpensesRoute
-  '/_authenticated/friends': typeof AuthenticatedFriendsRoute
+  '/_authenticated/settlement': typeof AuthenticatedSettlementRoute
   '/_authenticated/groups/$groupId': typeof AuthenticatedGroupsGroupIdRoute
   '/_authenticated/groups/': typeof AuthenticatedGroupsIndexRoute
 }
@@ -146,7 +146,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/dashboard'
     | '/expenses'
-    | '/friends'
+    | '/settlement'
     | '/groups/$groupId'
     | '/groups/'
   fileRoutesByTo: FileRoutesByTo
@@ -160,7 +160,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/dashboard'
     | '/expenses'
-    | '/friends'
+    | '/settlement'
     | '/groups/$groupId'
     | '/groups'
   id:
@@ -175,7 +175,7 @@ export interface FileRouteTypes {
     | '/_authenticated/categories'
     | '/_authenticated/dashboard'
     | '/_authenticated/expenses'
-    | '/_authenticated/friends'
+    | '/_authenticated/settlement'
     | '/_authenticated/groups/$groupId'
     | '/_authenticated/groups/'
   fileRoutesById: FileRoutesById
@@ -262,11 +262,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedExpensesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/friends': {
-      id: '/_authenticated/friends'
-      path: '/friends'
-      fullPath: '/friends'
-      preLoaderRoute: typeof AuthenticatedFriendsRouteImport
+    '/_authenticated/settlement': {
+      id: '/_authenticated/settlement'
+      path: '/settlement'
+      fullPath: '/settlement'
+      preLoaderRoute: typeof AuthenticatedSettlementRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/groups/': {
@@ -290,7 +290,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCategoriesRoute: typeof AuthenticatedCategoriesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedExpensesRoute: typeof AuthenticatedExpensesRoute
-  AuthenticatedFriendsRoute: typeof AuthenticatedFriendsRoute
+  AuthenticatedSettlementRoute: typeof AuthenticatedSettlementRoute
   AuthenticatedGroupsGroupIdRoute: typeof AuthenticatedGroupsGroupIdRoute
   AuthenticatedGroupsIndexRoute: typeof AuthenticatedGroupsIndexRoute
 }
@@ -299,7 +299,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCategoriesRoute: AuthenticatedCategoriesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedExpensesRoute: AuthenticatedExpensesRoute,
-  AuthenticatedFriendsRoute: AuthenticatedFriendsRoute,
+  AuthenticatedSettlementRoute: AuthenticatedSettlementRoute,
   AuthenticatedGroupsGroupIdRoute: AuthenticatedGroupsGroupIdRoute,
   AuthenticatedGroupsIndexRoute: AuthenticatedGroupsIndexRoute,
 }

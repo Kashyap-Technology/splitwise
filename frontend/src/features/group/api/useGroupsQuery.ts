@@ -1,6 +1,6 @@
 import {useQuery} from '@tanstack/react-query'
 import { api } from '@/api/client'
-import { GroupListResponse,GroupMemberResponse,GroupBalanceResponse,UserGroupResponse } from '../types/group.types'
+import { GroupMemberResponse,GroupBalanceResponse,UserGroupResponse,GroupDetailResponse,GroupDetailData,GroupSettlementResponse,UserSettlementResponse } from '../types/group.types'
 
 
 
@@ -15,14 +15,14 @@ export function useGroupQuery() {
 }
 
 // Extract a single group client-side from the cached/fetched groups list
+
 export function useGroupDetailQuery(groupId: string) {
-  return useQuery<UserGroupResponse[], Error, UserGroupResponse | undefined>({
-    queryKey: ['groups'],
+  return useQuery<GroupDetailData, Error>({
+    queryKey: ['group', groupId],
     queryFn: async () => {
-      const res = await api.get('/user/group/')
-      return res.data.data ?? []
+      const res = await api.get<GroupDetailResponse>(`/groups/${groupId}/detail/`)
+      return res.data.data
     },
-    select: (groups) => groups.find((g) => String(g.id) === String(groupId)),
     enabled: !!groupId,
   })
 }
@@ -47,4 +47,34 @@ export function useGroupBalanceQuery(groupId:string){
       return res.data.data??[]
     }
   })
+}
+
+export function useGroupSettlementQuery(groupId:string){
+  return useQuery<GroupSettlementResponse>({
+    queryKey:['group-settlement',groupId],
+    queryFn:async()=>{
+      const res=await api.get(`/expenses/group/${groupId}/settlement/`)
+      return res.data.data??[]
+    }
+  })
+}
+
+export function useUserSettlementQuery(){
+  return useQuery<UserSettlementResponse>({
+    queryKey:['user-settlements'],
+    queryFn:async()=>{
+      const res=await api.get('/settlements/my/settlements/')
+      return res.data.data??{
+        current_settlements: [],
+        settlement_history: [],
+        summary: {
+          current_settlement_count: 0,
+          history_count: 0,
+          total_to_pay: '0',
+          total_to_receive: '0',
+        },
+      }
+    }
+  })
+
 }

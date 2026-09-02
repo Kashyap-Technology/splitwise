@@ -6,10 +6,13 @@ import {
   Search,
   Plus,
   X,
-  ChevronRight,
   Camera,
   FolderKanban,
   Trash2,
+  Users,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Bell,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -18,7 +21,6 @@ import { Label } from '@/components/ui/label'
 import {
   Card,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -47,9 +49,24 @@ export const Route = createFileRoute('/_authenticated/groups/')({
   component: RouteComponent,
 })
 
-function RouteComponent() {
-  const { data: groups = [], isLoading, isError } = useGroupQuery()
+// Extended helper type to match design properties
+type GroupItem = {
+  id: string | number
+  name: string
+  description?: string
+  group_image_url?: string
+  members_count?: number
+  updated_at?: string
+  total_spend?: number
+  user_balance?: number // positive = owed to user, negative = user owes, 0 = settled
+}
+
+export function RouteComponent() {
+  const { data: rawGroups = [], isLoading, isError } = useGroupQuery()
+  const groups = rawGroups as GroupItem[]
+
   const [searchQuery, setSearchQuery] = useState('')
+  const [topSearchQuery, setTopSearchQuery] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const { mutate, isPending: isSubmitting } = useGroupMutation()
@@ -59,7 +76,6 @@ function RouteComponent() {
     register,
     handleSubmit,
     reset,
-    setValue,
     formState: { errors },
   } = useForm<CreateGroupInputs>({
     resolver: zodResolver(groupSchema),
@@ -118,6 +134,14 @@ function RouteComponent() {
       .slice(0, 2)
   }
 
+  // Accent backdrop circle colors for the top-right card corner
+  const cardAccents = [
+    'bg-emerald-100/60 text-emerald-900',
+    'bg-indigo-100/60 text-indigo-900',
+    'bg-purple-100/60 text-purple-900',
+    'bg-amber-100/60 text-amber-900',
+  ]
+
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
@@ -138,14 +162,48 @@ function RouteComponent() {
   }
 
   return (
-    <div className="p-6 md:p-8 space-y-8 max-w-7xl mx-auto min-h-[calc(100vh-4rem)] bg-slate-50/50">
-      {/* Top Header & Search/Actions */}
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
-            Groups Overview
-          </h1>
-          <p className="text-sm text-slate-500 mt-1 max-w-xl">
+    <div className="min-h-screen bg-[#F4F5F9] text-slate-800 p-6 md:p-10 space-y-8 max-w-7xl mx-auto">
+      {/* Top Navbar Header */}
+      <div className="flex items-center justify-between pb-2">
+        <div className="relative w-72">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Input
+            value={topSearchQuery}
+            onChange={(e) => setTopSearchQuery(e.target.value)}
+            placeholder="Search transactions..."
+            className="pl-9 bg-transparent border-none text-slate-600 placeholder:text-slate-400 shadow-none focus-visible:ring-0 text-sm h-9"
+          />
+        </div>
+
+        <div className="flex items-center gap-4">
+          <button className="relative p-2 text-slate-500 hover:text-slate-700 transition-colors rounded-full hover:bg-slate-200/50">
+            <Bell className="w-5 h-5" />
+            <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full ring-2 ring-[#F4F5F9]" />
+          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-bold text-slate-900 leading-tight">Alex Chen</p>
+              <p className="text-xs text-slate-400 font-medium">Settled Up</p>
+            </div>
+            <Avatar className="h-10 w-10 border border-white shadow-sm">
+              <AvatarImage src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256" alt="Alex Chen" />
+              <AvatarFallback className="bg-slate-300 text-slate-700">AC</AvatarFallback>
+            </Avatar>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Page Title & Actions Section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-2">
+        <div className="space-y-2 max-w-2xl">
+          <div className="inline-block relative">
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 relative z-10">
+              Groups Overview
+            </h1>
+            <span className="absolute left-0 bottom-1 w-full h-3 bg-orange-200/60 rounded-full z-0" />
+          </div>
+          <p className="text-sm text-slate-500 font-medium leading-relaxed">
             Manage your shared spaces, track collective spending, and balance the books across all your circles.
           </p>
         </div>
@@ -157,7 +215,7 @@ function RouteComponent() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search groups..."
-              className="pl-9 bg-white border-slate-200/80 rounded-full text-sm h-10 shadow-sm focus-visible:ring-1 focus-visible:ring-blue-500"
+              className="pl-9 bg-[#E9ECF3]/80 border-none rounded-2xl text-slate-700 placeholder:text-slate-400 text-sm h-12 shadow-none focus-visible:ring-1 focus-visible:ring-blue-500"
             />
           </div>
 
@@ -169,16 +227,15 @@ function RouteComponent() {
             }}
           >
             <DialogTrigger render={
-
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-5 h-10 flex items-center gap-2 shadow-sm font-medium text-sm shrink-0">
-                <Plus className="w-4 h-4" />
+              <Button className="bg-[#0038FF] hover:bg-blue-700 text-white rounded-full px-6 h-12 flex items-center gap-2 shadow-md shadow-blue-500/20 font-semibold text-sm shrink-0">
+                <Plus className="w-5 h-5 stroke-[2.5]" />
                 <span>New Space</span>
               </Button>
             }/>
 
-            <DialogContent className="sm:max-w-md bg-white rounded-2xl">
+            <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6">
               <DialogHeader>
-                <DialogTitle>Create New Space</DialogTitle>
+                <DialogTitle className="text-xl font-bold">Create New Space</DialogTitle>
                 <DialogDescription>
                   Set up a shared group for trips, households, or events.
                 </DialogDescription>
@@ -210,7 +267,6 @@ function RouteComponent() {
                         {previewUrl && (
                           <button
                             type="button"
-                            // onClick={() => setValue('group_image', undefined)}
                             className="absolute -top-1 -right-1 p-1 bg-destructive text-white rounded-full shadow-md hover:scale-110 transition-transform"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -240,7 +296,7 @@ function RouteComponent() {
 
                 <div className="space-y-2">
                   <Label htmlFor="name">Group Name *</Label>
-                  <Input id="name" placeholder="e.g. Summer House, Road Trip" {...register('name')} />
+                  <Input id="name" placeholder="e.g. Summer House, Road Trip" {...register('name')} className="rounded-xl" />
                   {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
                 </div>
 
@@ -250,6 +306,7 @@ function RouteComponent() {
                     id="description"
                     placeholder="Short summary of shared expenses"
                     {...register('description')}
+                    className="rounded-xl"
                   />
                   {errors.description && (
                     <p className="text-xs text-red-500">{errors.description.message}</p>
@@ -260,6 +317,7 @@ function RouteComponent() {
                   <Button
                     type="button"
                     variant="outline"
+                    className="rounded-xl"
                     onClick={() => {
                       reset()
                       setIsDialogOpen(false)
@@ -267,7 +325,7 @@ function RouteComponent() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  <Button type="submit" disabled={isSubmitting} className="bg-[#0038FF] hover:bg-blue-700 text-white rounded-xl">
                     {isSubmitting ? 'Creating...' : 'Create Group'}
                   </Button>
                 </DialogFooter>
@@ -277,31 +335,31 @@ function RouteComponent() {
         </div>
       </div>
 
-      {/* Main Layout Grid */}
+      {/* Main Grid Content */}
       <div>
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
-              <Card key={i} className="p-5 rounded-2xl space-y-4 border-slate-200/80">
+              <Card key={i} className="p-6 rounded-[28px] space-y-4 border-none shadow-sm bg-white">
                 <div className="flex items-center gap-3">
-                  <Skeleton className="h-12 w-12 rounded-full" />
+                  <Skeleton className="h-14 w-14 rounded-2xl" />
                   <div className="space-y-2 flex-1">
-                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-5 w-2/3" />
                     <Skeleton className="h-3 w-1/3" />
                   </div>
                 </div>
-                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-10 w-full mt-4" />
               </Card>
             ))}
           </div>
         ) : filteredGroups.length === 0 ? (
-          <Card className="p-12 text-center rounded-2xl border-dashed border-slate-200">
+          <Card className="p-16 text-center rounded-[32px] border-dashed border-2 border-slate-200 bg-white/50 shadow-none">
             <div className="flex flex-col items-center gap-3">
               <div className="p-4 bg-slate-100 rounded-full text-slate-400">
                 <FolderKanban className="h-8 w-8" />
               </div>
               <div className="space-y-1">
-                <h3 className="font-semibold text-slate-800 text-base">No groups found</h3>
+                <h3 className="font-bold text-slate-800 text-base">No groups found</h3>
                 <p className="text-xs text-slate-400 max-w-sm">
                   {searchQuery
                     ? `No groups match "${searchQuery}". Try a different keyword.`
@@ -311,43 +369,102 @@ function RouteComponent() {
             </div>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-            {filteredGroups.map((group) => (
-              <Link
-                key={group.id}
-                to="/groups/$groupId"
-                params={{ groupId: group.id.toString() }}
-                className="block group transition-all"
-              >
-                <Card className="rounded-2xl border-slate-200/80 bg-white hover:shadow-md hover:border-slate-300 transition-all h-full flex flex-col justify-between">
-                  <CardHeader className="p-5 pb-4 space-y-0">
-                    <div className="flex items-start gap-4">
-                      <Avatar className="h-12 w-12 rounded-full border shrink-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredGroups.map((group, index) => {
+              const accentClass = cardAccents[index % cardAccents.length]
+              const userBalance = group.user_balance ?? 0
+              const totalSpend = group.total_spend ?? 0
+              const membersCount = group.members_count ?? 1
+
+              return (
+                <Link
+                  key={group.id}
+                  to="/groups/$groupId"
+                  params={{ groupId: group.id.toString() }}
+                  className="block group transition-all"
+                >
+                  <Card className="relative overflow-hidden rounded-[28px] border-none bg-white p-6 shadow-sm hover:shadow-md transition-all duration-200 h-full flex flex-col justify-between">
+                    {/* Top Right Curved Colored Accent Backdrop */}
+                    <div
+                      className={`absolute -top-12 -right-12 w-44 h-44 rounded-full ${accentClass.split(' ')[0]} transition-transform duration-300 group-hover:scale-105`}
+                    />
+
+                    {/* Member Count Pill */}
+                    <div className="absolute top-5 right-5 z-10 flex items-center gap-1.5 px-3 py-1 bg-white/70 backdrop-blur-md rounded-full text-xs font-semibold text-slate-700 shadow-2xs">
+                      <Users className="w-3.5 h-3.5 text-slate-600" />
+                      <span>{membersCount}</span>
+                    </div>
+
+                    <CardHeader className="p-0 space-y-0 relative z-10">
+                      {/* Avatar Icon */}
+                      <Avatar className="h-14 w-14 rounded-2xl border border-slate-100 shadow-2xs shrink-0 mb-4 bg-slate-50">
                         {group.group_image_url && (
                           <AvatarImage src={group.group_image_url} alt={group.name} className="object-cover" />
                         )}
-                        <AvatarFallback className="bg-blue-50 text-blue-600 font-bold">
+                        <AvatarFallback className="bg-[#EAEFFD] text-[#0038FF] font-bold text-lg rounded-2xl">
                           {getInitials(group.name)}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <CardTitle className="font-bold text-slate-900 text-base truncate">{group.name}</CardTitle>
-                        <CardDescription className="text-xs text-slate-400 truncate mt-0.5">
-                          {group.description || 'No description provided'}
+
+                      {/* Title & Timestamp */}
+                      <div className="space-y-1">
+                        <CardTitle className="font-bold text-slate-900 text-xl tracking-tight line-clamp-1">
+                          {group.name}
+                        </CardTitle>
+                        <CardDescription className="text-xs font-medium text-slate-400">
+                          {group.updated_at ? `Updated ${group.updated_at}` : 'Updated recently'}
                         </CardDescription>
                       </div>
-                    </div>
-                  </CardHeader>
+                    </CardHeader>
 
-                  {/* <CardFooter className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 bg-slate-50/30">
-                    <span>
-                      Created by <strong className="text-slate-700 font-medium">{group.created_by.name}</strong>
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                  </CardFooter> */}
-                </Card>
-              </Link>
-            ))}
+                    {/* Bottom Metrics Section */}
+                    <div className="mt-8 pt-4 border-t border-slate-100 flex items-end justify-between relative z-10">
+                      <div>
+                        <span className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                          TOTAL SPEND
+                        </span>
+                        <span className="text-xl font-extrabold text-slate-900 tracking-tight">
+                          ${totalSpend.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+
+                      <div className="text-right">
+                        {userBalance < 0 ? (
+                          <>
+                            <span className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                              YOU OWE
+                            </span>
+                            <div className="flex items-center justify-end gap-0.5 text-orange-600 font-extrabold text-lg tracking-tight">
+                              <ArrowUpRight className="w-4 h-4 stroke-[3]" />
+                              <span>${Math.abs(userBalance).toFixed(2)}</span>
+                            </div>
+                          </>
+                        ) : userBalance > 0 ? (
+                          <>
+                            <span className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                              YOU ARE OWED
+                            </span>
+                            <div className="flex items-center justify-end gap-0.5 text-emerald-500 font-extrabold text-lg tracking-tight">
+                              <ArrowDownLeft className="w-4 h-4 stroke-[3]" />
+                              <span>${userBalance.toFixed(2)}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <span className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                              BALANCE
+                            </span>
+                            <span className="text-lg font-bold text-slate-400">
+                              Settled
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              )
+            })}
           </div>
         )}
       </div>

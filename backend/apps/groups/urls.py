@@ -2,6 +2,7 @@ from django.urls import path
 
 from apps.groups.views import (
     GroupCreateApi,
+    GroupDetailApi,
     GroupDeleteApi,
     GroupInvitationAcceptApi,
     GroupInvitationCreateApi,
@@ -16,6 +17,11 @@ from apps.groups.views import (
 urlpatterns = [
     path("groups/", GroupListApi.as_view(), name="list-group"),
     path("groups/create/", GroupCreateApi.as_view(), name="create-group"),
+    path(
+        "groups/<int:group_id>/detail/",
+        GroupDetailApi.as_view(),
+        name="group-detail",
+    ),
     path(
         "groups/<int:group_id>/invite/",
         GroupInvitationCreateApi.as_view(),

@@ -39,7 +39,7 @@ const mainNavItems: NavItem[] = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { label: "Groups", to: "/groups", icon: Users, badge: 3 },
   { label: "Expenses", to: "/expenses", icon: Receipt },
-  { label: "Friends", to: "/friends", icon: UserCheck, badge: "2 Owed" },
+  { label: "Settlement", to: "/settlement", icon: UserCheck, badge: "2 Owed" },
   { label: "Categories", to: "/categories", icon: Grid },
 ];
 

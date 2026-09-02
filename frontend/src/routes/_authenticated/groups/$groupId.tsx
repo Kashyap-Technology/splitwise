@@ -8,8 +8,9 @@ import {
   Tag,
   ShieldCheck,
   Mail,
+  ArrowRight,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
@@ -22,25 +23,24 @@ import {
   CreateExpenseInput,
   expenseSchema,
 } from '@/features/expense/schemas/expenseSchema'
-import {
-  useGroupDetailQuery,
-  useGroupMemberQuery,
-  useGroupBalanceQuery,
-} from '@/features/group/api/useGroupsQuery'
+import { useGroupDetailQuery } from '@/features/group/api/useGroupsQuery'
 import { useCreateExpenseMutation } from '@/features/expense/api/useExpenseMutation'
-import {
-  useExpenseQuery,
-  useExpenseCategoryQuery,
-} from '@/features/expense/api/useExpenseQuery'
-import { useAuth } from '@/features/auth/hooks/useAuth' 
+import { useExpenseCategoryQuery } from '@/features/expense/api/useExpenseQuery'
+import { useAuth } from '@/features/auth/hooks/useAuth'
+import { useInviteMemberMutation } from '@/features/group/api/useInviteMemberMutation'
 
 import { ExpenseFormDialog } from './components/ExpenseFormDialog'
-import {InviteMemberDialog} from './components/InviteMemberDialog'
+import { InviteMemberDialog } from './components/InviteMemberDialog'
 import { GroupBalancesCard } from './components/GroupBalancesCard'
 import { GroupHeader } from './components/GroupHeader'
 import { SummaryCard } from './components/SummaryCard'
 import type { GroupBalance } from './components/types'
-import {useInviteMemberMutation} from '@/features/group/api/useInviteMemberMutation'
+
+export interface SettlementSuggestion {
+  from_user: string
+  to_user: string
+  amount: number
+}
 
 export const Route = createFileRoute('/_authenticated/groups/$groupId')({
   component: GroupDetailComponent,
@@ -55,31 +55,63 @@ const getCategoryIcon = (categoryName?: string) => {
 }
 
 const getInitials = (name: string) =>
-  name
+  (name || 'User')
     .split(' ')
     .map((word) => word[0])
     .join('')
     .toUpperCase()
     .slice(0, 2)
 
-// balanceMap = { "1": 480.16, "2": -469.84, "3": -10.32 }
-// key is user_id (string), value is that user's net balance in the group
-function normalizeBalanceMap(raw: unknown): Record<string, number> {
-  if (!raw || typeof raw !== 'object') return {}
-  if ('data' in raw && typeof (raw as any).data === 'object') {
-    return (raw as any).data as Record<string, number>
-  }
-  return raw as Record<string, number>
+const parseNum = (val: unknown): number => {
+  if (val === null || val === undefined) return 0
+  const n = typeof val === 'number' ? val : parseFloat(String(val))
+  return isNaN(n) ? 0 : n
 }
 
-function buildGroupBalances(
-  balanceMap: Record<string, number>,
-  members: { id: number; name: string; avatarUrl?: string }[]
-): GroupBalance[] {
-  return members
+function normalizeBalanceMap(raw: unknown): Record<string, number> {
+  if (!raw) return {}
+
+  if (typeof raw === 'object' && raw !== null && 'data' in raw) {
+    return normalizeBalanceMap((raw as any).data)
+  }
+
+  if (Array.isArray(raw)) {
+    const map: Record<string, number> = {}
+    raw.forEach((item) => {
+      if (item && typeof item === 'object') {
+        const uid = item.user_id ?? item.id
+        const bal = parseNum(item.balance ?? item.amount)
+        if (uid !== undefined) {
+          map[String(uid)] = bal
+        }
+      }
+    })
+    return map
+  }
+
+  if (typeof raw === 'object' && raw !== null) {
+    const map: Record<string, number> = {}
+    Object.entries(raw as Record<string, unknown>).forEach(([k, v]) => {
+      map[String(k)] = parseNum(v)
+    })
+    return map
+  }
+
+  return {}
+}
+
+export function getGroupBalances(group?: {
+  balances?: unknown
+  members?: { id: number | string; name: string; avatarUrl?: string; profile_image_url?: string | null }[]
+}): GroupBalance[] {
+  if (!group?.members?.length) return []
+
+  const balanceMap = normalizeBalanceMap(group.balances)
+
+  return group.members
     .filter((member) => balanceMap[String(member.id)] !== undefined)
     .map((member) => {
-      const amount = balanceMap[String(member.id)]
+      const amount = balanceMap[String(member.id)] ?? 0
       const statusType: GroupBalance['statusType'] =
         amount > 0 ? 'credit' : amount < 0 ? 'debit' : 'settled'
       const statusText =
@@ -89,15 +121,38 @@ function buildGroupBalances(
             ? 'Owes'
             : 'Settled up'
 
+      const parsedId = Number(member.id)
+
       return {
-        id: member.id,
+        id: Number.isNaN(parsedId) ? 0 : parsedId,
         name: member.name,
-        avatarUrl: member.avatarUrl,
+        avatarUrl: member.avatarUrl || member.profile_image_url || undefined,
         amount: Math.abs(amount),
         statusType,
         statusText,
       }
     })
+}
+
+// Helper to normalize settlement suggestions from root payload or nested summary
+export function getSettlementSuggestions(group?: {
+  settlement_suggestions?: Record<string, any>[]
+  summary?: Record<string, any>
+}): SettlementSuggestion[] {
+  if (!group) return []
+
+  const rawSuggestions =
+    group.settlement_suggestions ??
+    (group.summary as Record<string, any> | undefined)?.settlement_suggestions ??
+    []
+
+  if (!Array.isArray(rawSuggestions)) return []
+
+  return rawSuggestions.map((item) => ({
+    from_user: item.from_user || item.from_user_name || 'Someone',
+    to_user: item.to_user || item.to_user_name || 'Someone',
+    amount: parseNum(item.amount),
+  }))
 }
 
 function GroupDetailComponent() {
@@ -106,16 +161,15 @@ function GroupDetailComponent() {
   const [isMemberDialogOpen, setIsMemberDialogOpen] = useState(false)
 
   const { user: currentUser } = useAuth()
-  console.log('current User',currentUser)
+  const currentUserId = currentUser?.data?.id ?? currentUser?.id
 
   const { data: group, isLoading: isLoadingGroup } = useGroupDetailQuery(groupId)
-  const { data: expenses = [], isLoading: isLoadingExpenses } = useExpenseQuery()
-  const { data: categories, isLoading: isLoadingCategories } = useExpenseCategoryQuery()
-  const { data: members = [], isLoading: isLoadingMembers } = useGroupMemberQuery(groupId)
-  const { data: balance, isLoading: isLoadingBalance } = useGroupBalanceQuery(groupId)
-  const {mutate:inviteMember,isPending:isInvitePending}=useInviteMemberMutation()
+  const expenses = group?.expenses ?? []
+  const members = group?.members ?? []
 
-  const { mutate, isPending } = useCreateExpenseMutation()
+  const { data: categories, isLoading: isLoadingCategories } = useExpenseCategoryQuery()
+  const { mutate: inviteMember, isPending: isInvitePending } = useInviteMemberMutation()
+  const { mutate: createExpense, isPending: isExpensePending } = useCreateExpenseMutation()
 
   const form = useForm<CreateExpenseInput>({
     resolver: zodResolver(expenseSchema) as any,
@@ -132,19 +186,12 @@ function GroupDetailComponent() {
   const { control, handleSubmit, reset } = form
   const watchedAmount = useWatch({ control, name: 'amount' }) || 0
 
-  const totalSpend = expenses.reduce(
-    (acc, exp) => acc + (Number(exp.amount) || 0),
-    0
-  )
+  const groupBalances = useMemo(() => getGroupBalances(group), [group])
+  const settlementSuggestions = useMemo(() => getSettlementSuggestions(group), [group])
 
-  // balance = { success, message, data: { "1": 480.16, ... } }
-const balanceMap = normalizeBalanceMap(balance)
-console.log('balanceMap', balanceMap)
-
-const groupBalances = buildGroupBalances(balanceMap, members)
-
-const yourBalanceRaw = currentUser ? balanceMap[String(currentUser.data.id)] ?? 0 : 0
+  const yourBalanceRaw = parseNum(group?.summary?.your_balance)
   const yourBalance = Math.abs(yourBalanceRaw)
+
   const yourBalancePrefix =
     yourBalanceRaw < 0 ? 'You owe' : yourBalanceRaw > 0 ? 'You get back' : 'Settled up'
   const yourBalanceColorClass =
@@ -155,15 +202,12 @@ const yourBalanceRaw = currentUser ? balanceMap[String(currentUser.data.id)] ?? 
         : 'text-slate-400'
 
   const peopleInvolvedCount = groupBalances.filter(
-    (b) => b.id !== currentUser?.id && b.statusType !== 'settled'
+    (b) => String(b.id) !== String(currentUserId) && b.statusType !== 'settled'
   ).length
 
-
-  //expse onSubmit
   const onExpenseSubmit = (data: CreateExpenseInput) => {
     const payerCount = data.payers.length
-    const share =
-      payerCount > 0 ? Number((data.amount / payerCount).toFixed(2)) : 0
+    const share = payerCount > 0 ? Number((data.amount / payerCount).toFixed(2)) : 0
 
     const payload = {
       ...data,
@@ -176,7 +220,7 @@ const yourBalanceRaw = currentUser ? balanceMap[String(currentUser.data.id)] ?? 
       })),
     }
 
-    mutate(
+    createExpense(
       { groupId, data: payload },
       {
         onSuccess: () => {
@@ -190,9 +234,6 @@ const yourBalanceRaw = currentUser ? balanceMap[String(currentUser.data.id)] ?? 
     )
   }
 
-   const onMemberSubmit= ( ) => {
-    console.log('hello invite memebers here')
-  }
   if (isLoadingGroup) return <GroupDetailSkeleton />
   if (!group) return <div className="p-10 text-center text-slate-500">Group not found</div>
 
@@ -209,7 +250,7 @@ const yourBalanceRaw = currentUser ? balanceMap[String(currentUser.data.id)] ?? 
         <SummaryCard
           icon={<Receipt className="w-4 h-4 text-slate-400" />}
           label="Total Group Spend"
-          value={totalSpend}
+          value={parseNum(group.summary?.total_expenses)}
           meta={`Across ${expenses.length} expenses`}
           actionLabel="View breakdown"
         />
@@ -218,7 +259,7 @@ const yourBalanceRaw = currentUser ? balanceMap[String(currentUser.data.id)] ?? 
           <SummaryCard
             icon={<Wallet className="w-4 h-4 text-slate-400" />}
             label="Your Balance"
-            value={isLoadingBalance ? 0 : yourBalance}
+            value={yourBalance}
             valueClassName={yourBalanceColorClass}
             prefixText={yourBalancePrefix}
             meta={`To ${peopleInvolvedCount} people`}
@@ -235,30 +276,31 @@ const yourBalanceRaw = currentUser ? balanceMap[String(currentUser.data.id)] ?? 
         categories={categories}
         isLoadingCategories={isLoadingCategories}
         members={members}
-        isLoadingMembers={isLoadingMembers}
+        isLoadingMembers={isLoadingGroup}
         watchedAmount={watchedAmount}
-        isPending={isPending}
+        isPending={isExpensePending}
         onSubmit={handleSubmit(onExpenseSubmit)}
         onCancel={() => {
           setIsExpenseDialogOpen(false)
           reset()
         }}
       />
-    <InviteMemberDialog
-  isOpen={isMemberDialogOpen}
-  onOpenChange={setIsMemberDialogOpen}
-  onInvite={(selectedUser) => {
-    inviteMember(
-      { groupId, userId: selectedUser.id },
-      {
-        onSuccess: () => {
-          setIsMemberDialogOpen(false)
-        },
-      }
-    )
-  }}
-  isPending={isInvitePending}
-/> 
+
+      <InviteMemberDialog
+        isOpen={isMemberDialogOpen}
+        onOpenChange={setIsMemberDialogOpen}
+        onInvite={(selectedUser) => {
+          inviteMember(
+            { groupId, userId: selectedUser.id },
+            {
+              onSuccess: () => {
+                setIsMemberDialogOpen(false)
+              },
+            }
+          )
+        }}
+        isPending={isInvitePending}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2 space-y-6">
@@ -286,19 +328,39 @@ const yourBalanceRaw = currentUser ? balanceMap[String(currentUser.data.id)] ?? 
 
             {/* EXPENSES TAB */}
             <TabsContent value="expenses" className="mt-6 space-y-3">
-              {isLoadingExpenses ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-20 w-full rounded-2xl" />
-                  <Skeleton className="h-20 w-full rounded-2xl" />
-                </div>
-              ) : expenses.length === 0 ? (
+              {expenses.length === 0 ? (
                 <Card className="p-8 text-center text-slate-500 rounded-2xl border-0 shadow-sm bg-white">
-                  No expenses added yet. Click "Add Expense" to get started!
+                  No expenses added yet. Click &quot;Add Expense&quot; to get started!
                 </Card>
               ) : (
                 expenses.map((expense) => {
                   const IconComponent = getCategoryIcon(expense.category_name)
-                  const parsedAmount = Number(expense.amount) || 0
+                  const parsedTotal = parseNum(expense.amount)
+
+                  // Calculate the current user's personal net share for this expense
+                  const primaryPayer = expense.payers?.[0]?.user
+                  const isPaidByCurrentUser = String(primaryPayer?.id) === String(currentUserId)
+                  const payerName = isPaidByCurrentUser
+                    ? 'You'
+                    : primaryPayer?.name || 'Unknown'
+
+                  const userParticipant = expense.participants?.find(
+                    (p) => String(p.user?.id) === String(currentUserId)
+                  )
+                  const userPayer = expense.payers?.find(
+                    (p) => String(p.user?.id) === String(currentUserId)
+                  )
+
+                  const userPaidAmount = parseNum(userPayer?.amount_paid)
+                  const userShareAmount = parseNum(userParticipant?.amount_to_pay)
+                  const netUserAmount = userPaidAmount - userShareAmount
+
+                  const formattedDate = expense.created_at
+                    ? new Date(expense.created_at).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                    })
+                    : ''
 
                   return (
                     <Card
@@ -306,29 +368,63 @@ const yourBalanceRaw = currentUser ? balanceMap[String(currentUser.data.id)] ?? 
                       className="rounded-2xl border-0 shadow-sm bg-white hover:shadow-md transition-shadow"
                     >
                       <CardContent className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="p-3 bg-slate-100 rounded-full text-slate-600 shrink-0">
-                            <IconComponent className="w-5 h-5" />
+                        {/* Left Section: Icon + Title/Metadata */}
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div className="p-3 bg-slate-100 rounded-full text-slate-500 shrink-0">
+                            <IconComponent className="w-6 h-6" />
                           </div>
-                          <div>
-                            <h4 className="font-bold text-slate-900 text-sm">
+                          <div className="min-w-0 space-y-0.5">
+                            <h4 className="font-semibold text-slate-900 text-lg truncate">
                               {expense.title}
                             </h4>
-                            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5 capitalize">
-                              <Tag className="w-3 h-3 inline" />
-                              {expense.category_name || 'Uncategorized'} • Split: {expense.split_type}
+                            <p className=" text-slate-400  truncate">
+                              {formattedDate && `${formattedDate} · `}Paid by {payerName}
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-6 text-right">
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        {/* Right Section: Total & Personal Balance Split */}
+                        <div className="flex items-center gap-4 shrink-0 pl-4">
+                          <div className="text-right">
+                            <span className="text-[10px] text-slate-400 font-medium block">
                               Total
                             </span>
                             <span className="font-bold text-slate-900 text-sm">
-                              ${parsedAmount.toFixed(2)}
+                              ${parsedTotal.toFixed(2)}
                             </span>
+                          </div>
+
+                          <div className="h-7 w-[1px] bg-slate-200" />
+
+                          <div className="text-right min-w-[70px]">
+                            {netUserAmount > 0 ? (
+                              <>
+                                <span className="text-[10px] text-emerald-600 font-medium block">
+                                  You lent
+                                </span>
+                                <span className="font-bold text-emerald-600 text-sm">
+                                  ${netUserAmount.toFixed(2)}
+                                </span>
+                              </>
+                            ) : netUserAmount < 0 ? (
+                              <>
+                                <span className="text-[10px] text-orange-600 font-medium block">
+                                  You owe
+                                </span>
+                                <span className="font-bold text-orange-600 text-sm">
+                                  ${Math.abs(netUserAmount).toFixed(2)}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-[10px] text-slate-400 font-medium block">
+                                  Not involved
+                                </span>
+                                <span className="font-bold text-slate-400 text-sm">
+                                  $0.00
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </CardContent>
@@ -339,63 +435,121 @@ const yourBalanceRaw = currentUser ? balanceMap[String(currentUser.data.id)] ?? 
             </TabsContent>
 
             {/* BALANCES TAB */}
-            <TabsContent value="balances" className="mt-6">
-              {isLoadingBalance ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-16 w-full rounded-2xl" />
-                  <Skeleton className="h-16 w-full rounded-2xl" />
-                </div>
-              ) : groupBalances.length === 0 ? (
+            <TabsContent value="balances" className="mt-6 space-y-6">
+              {/* SETTLEMENT SUGGESTIONS */}
+              {settlementSuggestions.length > 0 && (
+                <Card className="rounded-2xl border-0 shadow-sm bg-white overflow-hidden">
+                  <CardContent className="p-5 pb-2">
+                    <h3 className="font-bold text-slate-900 text-base">Optimal Settlement Payments</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Minimizes total transactions needed to clear debts.
+                    </p>
+                  </CardContent>
+                  <div className="divide-y divide-slate-100">
+                    {settlementSuggestions.map((s, idx) => (
+                      <div
+                        key={idx}
+                        className="p-4 px-5 flex items-center justify-between hover:bg-slate-50/60 transition-colors"
+                      >
+                        <div className="flex items-center gap-2 font-medium text-sm text-slate-800 min-w-0">
+                          <span className="font-bold text-slate-900 truncate">{s.from_user}</span>
+                          <span className="text-xs text-slate-400 flex items-center gap-1 shrink-0">
+                            pays <ArrowRight className="w-3.5 h-3.5 text-blue-500 inline" />
+                          </span>
+                          <span className="font-bold text-slate-900 truncate">{s.to_user}</span>
+                        </div>
+
+                        <span className="text-sm font-extrabold text-blue-600 bg-blue-50 px-3 py-1 rounded-full shrink-0">
+                          ${s.amount.toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* INDIVIDUAL BALANCES */}
+              {groupBalances.length === 0 ? (
                 <Card className="p-8 text-center text-slate-500 rounded-2xl border-0 shadow-sm bg-white">
                   No balance data yet.
                 </Card>
               ) : (
-                <div className="space-y-3">
-                  {groupBalances.map((b) => (
-                    <Card key={b.id} className="rounded-2xl border-0 shadow-sm bg-white">
-                      <CardContent className="p-4 flex items-center justify-between">
-                        <span className="font-semibold text-slate-800 text-sm">
-                          {b.name}
-                        </span>
+                <Card className="rounded-2xl border-0 shadow-sm bg-white overflow-hidden">
+                  <CardContent className="p-5 pb-2">
+                    <h3 className="font-bold text-slate-900 text-base">Net Balances</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Individual balance summary for all members.
+                    </p>
+                  </CardContent>
+                  <div className="divide-y divide-slate-100">
+                    {groupBalances.map((b) => (
+                      <div
+                        key={b.id}
+                        className="p-4 px-5 flex items-center justify-between hover:bg-slate-50/60 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Avatar className="h-9 w-9 rounded-full border shrink-0">
+                            {b.avatarUrl && (
+                              <AvatarImage
+                                src={b.avatarUrl}
+                                alt={b.name}
+                                className="object-cover"
+                              />
+                            )}
+                            <AvatarFallback className="bg-blue-50 text-blue-600 font-bold text-xs">
+                              {getInitials(b.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="font-semibold text-slate-800 text-sm truncate">
+                            {String(b.id) === String(currentUserId) ? 'You' : b.name}
+                          </span>
+                        </div>
+
                         <span
-                          className={`font-bold text-sm ${
-                            b.statusType === 'credit'
-                              ? 'text-emerald-600'
+                          className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${b.statusType === 'credit'
+                              ? 'bg-emerald-50 text-emerald-600'
                               : b.statusType === 'settled'
-                                ? 'text-slate-400'
-                                : 'text-orange-600'
-                          }`}
+                                ? 'bg-slate-100 text-slate-400'
+                                : 'bg-orange-50 text-orange-600'
+                            }`}
                         >
                           {b.statusText}
-                          {b.statusType !== 'settled' && `: $${b.amount.toFixed(2)}`}
+                          {b.statusType !== 'settled' && ` $${b.amount.toFixed(2)}`}
                         </span>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
               )}
             </TabsContent>
 
             {/* MEMBERS TAB */}
             <TabsContent value="members" className="mt-6">
-              {isLoadingMembers ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-16 w-full rounded-2xl" />
-                  <Skeleton className="h-16 w-full rounded-2xl" />
-                </div>
-              ) : members.length === 0 ? (
+              {members.length === 0 ? (
                 <Card className="p-8 text-center text-slate-500 rounded-2xl border-0 shadow-sm bg-white">
                   No members found in this group.
                 </Card>
               ) : (
-                <div className="space-y-3">
-                  {members.map((member) => (
-                    <Card
-                      key={member.id}
-                      className="rounded-2xl border-0 shadow-sm bg-white hover:shadow-md transition-shadow"
-                    >
-                      <CardContent className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                <Card className="rounded-2xl border-0 shadow-sm bg-white overflow-hidden">
+                  <CardContent className="p-5 pb-3">
+                    <h3 className="font-bold text-slate-900 text-base">Group Roster</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Manage who has access to this shared ledger.
+                    </p>
+                  </CardContent>
+
+                  <div className="hidden sm:grid grid-cols-[1fr_auto] gap-4 px-5 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-400 border-y border-slate-100 bg-slate-50/60">
+                    <span>Name / Email</span>
+                    <span>Role</span>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    {members.map((member) => (
+                      <div
+                        key={member.id}
+                        className="p-4 px-5 flex items-center justify-between gap-4 hover:bg-slate-50/60 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
                           <Avatar className="h-10 w-10 rounded-full border shrink-0">
                             {member.profile_image_url && (
                               <AvatarImage
@@ -408,41 +562,45 @@ const yourBalanceRaw = currentUser ? balanceMap[String(currentUser.data.id)] ?? 
                               {getInitials(member.name)}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
+                          <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <h4 className="font-bold text-slate-900 text-sm">
+                              <h4 className="font-bold text-slate-900 text-sm truncate">
                                 {member.name}
                               </h4>
                               {member.role === 'admin' && (
-                                <ShieldCheck className="w-4 h-4 text-amber-500" />
+                                <ShieldCheck className="w-4 h-4 text-amber-500 shrink-0" />
+                              )}
+                              {String(member.id) === String(currentUserId) && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-600 text-white shrink-0">
+                                  YOU
+                                </span>
                               )}
                             </div>
-                            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
-                              {member.email}
+                            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1 truncate">
+                              <Mail className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{member.email}</span>
                             </p>
                           </div>
                         </div>
 
                         <span
-                          className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${
-                            member.role === 'admin'
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize shrink-0 ${member.role === 'admin'
                               ? 'bg-amber-50 text-amber-700 border border-amber-200'
                               : 'bg-slate-100 text-slate-600 border border-slate-200'
-                          }`}
+                            }`}
                         >
                           {member.role || 'member'}
                         </span>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
               )}
             </TabsContent>
           </Tabs>
         </div>
 
-        <GroupBalancesCard balances={groupBalances} isLoading={isLoadingBalance} />
+        <GroupBalancesCard balances={groupBalances} isLoading={isLoadingGroup} />
       </div>
     </div>
   )
