@@ -6,10 +6,12 @@ export function GroupHeader({
   name,
   description,
   onAddExpense,
+  onAddMember,
 }: {
   name: string
   description: string
   onAddExpense: () => void
+  onAddMember: () => void
 }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -19,11 +21,20 @@ export function GroupHeader({
         </h1>
         <p className="text-sm text-slate-500 mt-1">{description}</p>
       </div>
+      <Button
+        onClick={onAddMember}
+        className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 h-11 flex items-center gap-2 font-medium shadow-sm shrink-0"
+      >
+
+        <Plus className="w-4 h-4" />
+        <span>Add Members</span>
+      </Button>
 
       <Button
         onClick={onAddExpense}
         className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 h-11 flex items-center gap-2 font-medium shadow-sm shrink-0"
       >
+
         <Plus className="w-4 h-4" />
         <span>Add Expense</span>
       </Button>

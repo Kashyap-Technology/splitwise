@@ -2,44 +2,61 @@ import { Lightbulb } from 'lucide-react'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 
 import type { GroupBalance } from './types'
 
-export function GroupBalancesCard({ balances }: { balances: GroupBalance[] }) {
+export function GroupBalancesCard({
+  balances,
+  isLoading = false,
+}: {
+  balances: GroupBalance[]
+  isLoading?: boolean
+}) {
   return (
     <div className="space-y-6">
       <Card className="rounded-3xl border-0 shadow-sm bg-slate-100/70 p-6 space-y-6">
         <h3 className="font-bold text-slate-900 text-base">Group Balances</h3>
 
         <div className="space-y-4">
-          {balances.map((member) => (
-            <div key={member.id} className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-3">
-                <Avatar className="w-8 h-8">
-                  <AvatarImage src={member.avatarUrl} />
-                  <AvatarFallback>{member.name[0]}</AvatarFallback>
-                </Avatar>
-                <span className="font-semibold text-slate-800">{member.name}</span>
-              </div>
+          {isLoading ? (
+            <>
+              <Skeleton className="h-10 w-full rounded-xl" />
+              <Skeleton className="h-10 w-full rounded-xl" />
+              <Skeleton className="h-10 w-full rounded-xl" />
+            </>
+          ) : balances.length === 0 ? (
+            <p className="text-xs text-slate-500">No balances yet.</p>
+          ) : (
+            balances.map((member) => (
+              <div key={member.id} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-3">
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={member.avatarUrl} />
+                    <AvatarFallback>{member.name[0]}</AvatarFallback>
+                  </Avatar>
+                  <span className="font-semibold text-slate-800">{member.name}</span>
+                </div>
 
-              <div className="text-right">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                  {member.statusText}
-                </span>
-                <span
-                  className={`font-bold text-sm ${
-                    member.statusType === 'credit'
-                      ? 'text-emerald-600'
-                      : member.statusType === 'settled'
-                        ? 'text-slate-400'
-                        : 'text-orange-600'
-                  }`}
-                >
-                  {member.amount > 0 ? `$${member.amount.toFixed(2)}` : 'Settled'}
-                </span>
+                <div className="text-right">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                    {member.statusText}
+                  </span>
+                  <span
+                    className={`font-bold text-sm ${
+                      member.statusType === 'credit'
+                        ? 'text-emerald-600'
+                        : member.statusType === 'settled'
+                          ? 'text-slate-400'
+                          : 'text-orange-600'
+                    }`}
+                  >
+                    {member.statusType === 'settled' ? 'Settled' : `$${member.amount.toFixed(2)}`}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </Card>
 

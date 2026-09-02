@@ -17,6 +17,7 @@ import { useSignUpMutation } from "../api/useSignUpMutation";
 import { ArrowRight } from "lucide-react";
 import { useMemo } from "react";
 import { Camera } from "lucide-react";
+import { compressImage } from "@/lib/compressImage";
 
 export function SignUpForm() {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ export function SignUpForm() {
     formData.append("phone", data.phone);
 
     if (data.profile_image) {
-      formData.append("profile_image", data.profile_image);
+      formData.append("profile_image", await compressImage(data.profile_image));
     }
     mutate(formData);
   };

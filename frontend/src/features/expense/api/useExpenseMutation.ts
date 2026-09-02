@@ -25,6 +25,9 @@ export function useCreateExpenseMutation() {
       await queryClient.invalidateQueries({
         queryKey: ['expenses', variables.groupId],
       })
+      await queryClient.invalidateQueries({
+        queryKey: ['group-balance', variables.groupId],
+      })
     },
   })
 }

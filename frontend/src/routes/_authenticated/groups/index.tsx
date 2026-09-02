@@ -27,6 +27,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from '@/components/ui/avatar'
+import { compressImage } from '@/lib/compressImage'
 import {
   Dialog,
   DialogContent,
@@ -88,7 +89,7 @@ function RouteComponent() {
     group.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const onSubmit = (data: CreateGroupInputs) => {
+  const onSubmit = async (data: CreateGroupInputs) => {
     const formData = new FormData()
     formData.append('name', data.name)
 
@@ -97,7 +98,7 @@ function RouteComponent() {
     }
 
     if (data.group_image) {
-      formData.append('group_image', data.group_image)
+      formData.append('group_image', await compressImage(data.group_image))
     }
 
     mutate(formData, {
@@ -322,8 +323,8 @@ function RouteComponent() {
                   <CardHeader className="p-5 pb-4 space-y-0">
                     <div className="flex items-start gap-4">
                       <Avatar className="h-12 w-12 rounded-full border shrink-0">
-                        {group.group_imagekey && (
-                          <AvatarImage src={`/${group.group_imagekey}`} alt={group.name} className="object-cover" />
+                        {group.group_image_url && (
+                          <AvatarImage src={group.group_image_url} alt={group.name} className="object-cover" />
                         )}
                         <AvatarFallback className="bg-blue-50 text-blue-600 font-bold">
                           {getInitials(group.name)}
@@ -338,12 +339,12 @@ function RouteComponent() {
                     </div>
                   </CardHeader>
 
-                  <CardFooter className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 bg-slate-50/30">
+                  {/* <CardFooter className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 bg-slate-50/30">
                     <span>
                       Created by <strong className="text-slate-700 font-medium">{group.created_by.name}</strong>
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                  </CardFooter>
+                  </CardFooter> */}
                 </Card>
               </Link>
             ))}

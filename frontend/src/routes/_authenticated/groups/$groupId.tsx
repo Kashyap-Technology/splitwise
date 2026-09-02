@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
 import {
   Car,
   Landmark,
@@ -7,6 +6,8 @@ import {
   Utensils,
   Wallet,
   Tag,
+  ShieldCheck,
+  Mail,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
@@ -15,68 +16,36 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 import {
   CreateExpenseInput,
   expenseSchema,
 } from '@/features/expense/schemas/expenseSchema'
-import { useGroupMemberQuery } from '@/features/group/api/useGroupsQuery'
+import {
+  useGroupDetailQuery,
+  useGroupMemberQuery,
+  useGroupBalanceQuery,
+} from '@/features/group/api/useGroupsQuery'
 import { useCreateExpenseMutation } from '@/features/expense/api/useExpenseMutation'
-import { useExpenseQuery ,useExpenseCategoryQuery} from '@/features/expense/api/useExpenseQuery'
+import {
+  useExpenseQuery,
+  useExpenseCategoryQuery,
+} from '@/features/expense/api/useExpenseQuery'
+import { useAuth } from '@/features/auth/hooks/useAuth' 
 
 import { ExpenseFormDialog } from './components/ExpenseFormDialog'
+import {InviteMemberDialog} from './components/InviteMemberDialog'
 import { GroupBalancesCard } from './components/GroupBalancesCard'
 import { GroupHeader } from './components/GroupHeader'
 import { SummaryCard } from './components/SummaryCard'
+import type { GroupBalance } from './components/types'
+import {useInviteMemberMutation} from '@/features/group/api/useInviteMemberMutation'
 
 export const Route = createFileRoute('/_authenticated/groups/$groupId')({
   component: GroupDetailComponent,
 })
 
-const fetchGroupDetails = async (groupId: string) => {
-  await new Promise((resolve) => setTimeout(resolve, 400))
-
-  return {
-    id: groupId,
-    name: 'Kastha Mandap Trip',
-    description: 'This is a trip to kasthamandap',
-    totalSpend: 2450.0,
-    totalExpensesCount: 18,
-    userBalance: -125.5,
-    settlePeopleCount: 2,
-    balances: [
-      {
-        id: 'u1',
-        name: 'Sarah',
-        avatarUrl:
-          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-        statusText: 'Gets back',
-        amount: 85.5,
-        statusType: 'credit',
-      },
-      {
-        id: 'u2',
-        name: 'Mike',
-        avatarUrl:
-          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-        statusText: 'Gets back',
-        amount: 40.0,
-        statusType: 'credit',
-      },
-      {
-        id: 'u3',
-        name: 'Emma',
-        avatarUrl:
-          'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
-        statusText: 'Settled up',
-        amount: 0,
-        statusType: 'settled',
-      },
-    ],
-  }
-}
-
-// Helper to resolve an icon based on category name
 const getCategoryIcon = (categoryName?: string) => {
   const normalized = categoryName?.toLowerCase() || ''
   if (normalized.includes('food') || normalized.includes('dinner')) return Utensils
@@ -85,18 +54,67 @@ const getCategoryIcon = (categoryName?: string) => {
   return Receipt
 }
 
+const getInitials = (name: string) =>
+  name
+    .split(' ')
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+
+// balanceMap = { "1": 480.16, "2": -469.84, "3": -10.32 }
+// key is user_id (string), value is that user's net balance in the group
+function normalizeBalanceMap(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== 'object') return {}
+  if ('data' in raw && typeof (raw as any).data === 'object') {
+    return (raw as any).data as Record<string, number>
+  }
+  return raw as Record<string, number>
+}
+
+function buildGroupBalances(
+  balanceMap: Record<string, number>,
+  members: { id: number; name: string; avatarUrl?: string }[]
+): GroupBalance[] {
+  return members
+    .filter((member) => balanceMap[String(member.id)] !== undefined)
+    .map((member) => {
+      const amount = balanceMap[String(member.id)]
+      const statusType: GroupBalance['statusType'] =
+        amount > 0 ? 'credit' : amount < 0 ? 'debit' : 'settled'
+      const statusText =
+        statusType === 'credit'
+          ? 'Gets back'
+          : statusType === 'debit'
+            ? 'Owes'
+            : 'Settled up'
+
+      return {
+        id: member.id,
+        name: member.name,
+        avatarUrl: member.avatarUrl,
+        amount: Math.abs(amount),
+        statusType,
+        statusText,
+      }
+    })
+}
+
 function GroupDetailComponent() {
   const { groupId } = Route.useParams()
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false)
+  const [isMemberDialogOpen, setIsMemberDialogOpen] = useState(false)
 
-  const { data: group, isLoading: isLoadingGroup } = useQuery({
-    queryKey: ['group', groupId],
-    queryFn: () => fetchGroupDetails(groupId),
-  })
+  const { user: currentUser } = useAuth()
+  console.log('current User',currentUser)
 
+  const { data: group, isLoading: isLoadingGroup } = useGroupDetailQuery(groupId)
   const { data: expenses = [], isLoading: isLoadingExpenses } = useExpenseQuery()
   const { data: categories, isLoading: isLoadingCategories } = useExpenseCategoryQuery()
-  const { data: members, isLoading: isLoadingMembers } = useGroupMemberQuery()
+  const { data: members = [], isLoading: isLoadingMembers } = useGroupMemberQuery(groupId)
+  const { data: balance, isLoading: isLoadingBalance } = useGroupBalanceQuery(groupId)
+  const {mutate:inviteMember,isPending:isInvitePending}=useInviteMemberMutation()
+
   const { mutate, isPending } = useCreateExpenseMutation()
 
   const form = useForm<CreateExpenseInput>({
@@ -111,15 +129,38 @@ function GroupDetailComponent() {
     },
   })
 
-  const {
-    control,
-    handleSubmit,
-    reset,
-  } = form
-
+  const { control, handleSubmit, reset } = form
   const watchedAmount = useWatch({ control, name: 'amount' }) || 0
 
-  const onSubmit = (data: CreateExpenseInput) => {
+  const totalSpend = expenses.reduce(
+    (acc, exp) => acc + (Number(exp.amount) || 0),
+    0
+  )
+
+  // balance = { success, message, data: { "1": 480.16, ... } }
+const balanceMap = normalizeBalanceMap(balance)
+console.log('balanceMap', balanceMap)
+
+const groupBalances = buildGroupBalances(balanceMap, members)
+
+const yourBalanceRaw = currentUser ? balanceMap[String(currentUser.data.id)] ?? 0 : 0
+  const yourBalance = Math.abs(yourBalanceRaw)
+  const yourBalancePrefix =
+    yourBalanceRaw < 0 ? 'You owe' : yourBalanceRaw > 0 ? 'You get back' : 'Settled up'
+  const yourBalanceColorClass =
+    yourBalanceRaw < 0
+      ? 'text-orange-600'
+      : yourBalanceRaw > 0
+        ? 'text-emerald-600'
+        : 'text-slate-400'
+
+  const peopleInvolvedCount = groupBalances.filter(
+    (b) => b.id !== currentUser?.id && b.statusType !== 'settled'
+  ).length
+
+
+  //expse onSubmit
+  const onExpenseSubmit = (data: CreateExpenseInput) => {
     const payerCount = data.payers.length
     const share =
       payerCount > 0 ? Number((data.amount / payerCount).toFixed(2)) : 0
@@ -139,7 +180,7 @@ function GroupDetailComponent() {
       { groupId, data: payload },
       {
         onSuccess: () => {
-          setIsDialogOpen(false)
+          setIsExpenseDialogOpen(false)
           reset()
         },
         onError: (err) => {
@@ -149,23 +190,27 @@ function GroupDetailComponent() {
     )
   }
 
+   const onMemberSubmit= ( ) => {
+    console.log('hello invite memebers here')
+  }
   if (isLoadingGroup) return <GroupDetailSkeleton />
-  if (!group) return <div>Group not found</div>
+  if (!group) return <div className="p-10 text-center text-slate-500">Group not found</div>
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 bg-slate-50/50 min-h-screen">
       <GroupHeader
         name={group.name}
-        description={group.description}
-        onAddExpense={() => setIsDialogOpen(true)}
+        description={group.description || 'No description provided'}
+        onAddExpense={() => setIsExpenseDialogOpen(true)}
+        onAddMember={() => setIsMemberDialogOpen(true)}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <SummaryCard
           icon={<Receipt className="w-4 h-4 text-slate-400" />}
           label="Total Group Spend"
-          value={group.totalSpend}
-          meta={`Across ${expenses.length || group.totalExpensesCount} expenses`}
+          value={totalSpend}
+          meta={`Across ${expenses.length} expenses`}
           actionLabel="View breakdown"
         />
 
@@ -173,10 +218,10 @@ function GroupDetailComponent() {
           <SummaryCard
             icon={<Wallet className="w-4 h-4 text-slate-400" />}
             label="Your Balance"
-            value={Math.abs(group.userBalance)}
-            valueClassName="text-orange-600"
-            prefixText="You owe"
-            meta={`To ${group.settlePeopleCount} people`}
+            value={isLoadingBalance ? 0 : yourBalance}
+            valueClassName={yourBalanceColorClass}
+            prefixText={yourBalancePrefix}
+            meta={`To ${peopleInvolvedCount} people`}
             actionLabel="Settle balances"
           />
           <Wallet className="absolute right-4 bottom-4 w-28 h-28 text-orange-200/40 pointer-events-none" />
@@ -184,8 +229,8 @@ function GroupDetailComponent() {
       </div>
 
       <ExpenseFormDialog
-        isOpen={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
+        isOpen={isExpenseDialogOpen}
+        onOpenChange={setIsExpenseDialogOpen}
         form={form}
         categories={categories}
         isLoadingCategories={isLoadingCategories}
@@ -193,12 +238,27 @@ function GroupDetailComponent() {
         isLoadingMembers={isLoadingMembers}
         watchedAmount={watchedAmount}
         isPending={isPending}
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(onExpenseSubmit)}
         onCancel={() => {
-          setIsDialogOpen(false)
+          setIsExpenseDialogOpen(false)
           reset()
         }}
       />
+    <InviteMemberDialog
+  isOpen={isMemberDialogOpen}
+  onOpenChange={setIsMemberDialogOpen}
+  onInvite={(selectedUser) => {
+    inviteMember(
+      { groupId, userId: selectedUser.id },
+      {
+        onSuccess: () => {
+          setIsMemberDialogOpen(false)
+        },
+      }
+    )
+  }}
+  isPending={isInvitePending}
+/> 
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2 space-y-6">
@@ -220,10 +280,11 @@ function GroupDetailComponent() {
                 value="members"
                 className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-0 pb-3 font-semibold text-slate-500 data-[state=active]:text-blue-600 text-sm"
               >
-                Members ({members?.length || 0})
+                Members ({members.length})
               </TabsTrigger>
             </TabsList>
 
+            {/* EXPENSES TAB */}
             <TabsContent value="expenses" className="mt-6 space-y-3">
               {isLoadingExpenses ? (
                 <div className="space-y-3">
@@ -275,31 +336,113 @@ function GroupDetailComponent() {
                   )
                 })
               )}
+            </TabsContent>
 
-              {expenses.length > 0 && (
-                <div className="pt-4 text-center">
-                  <button className="text-sm font-semibold text-blue-600 hover:underline">
-                    Load more expenses
-                  </button>
+            {/* BALANCES TAB */}
+            <TabsContent value="balances" className="mt-6">
+              {isLoadingBalance ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-16 w-full rounded-2xl" />
+                  <Skeleton className="h-16 w-full rounded-2xl" />
+                </div>
+              ) : groupBalances.length === 0 ? (
+                <Card className="p-8 text-center text-slate-500 rounded-2xl border-0 shadow-sm bg-white">
+                  No balance data yet.
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {groupBalances.map((b) => (
+                    <Card key={b.id} className="rounded-2xl border-0 shadow-sm bg-white">
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <span className="font-semibold text-slate-800 text-sm">
+                          {b.name}
+                        </span>
+                        <span
+                          className={`font-bold text-sm ${
+                            b.statusType === 'credit'
+                              ? 'text-emerald-600'
+                              : b.statusType === 'settled'
+                                ? 'text-slate-400'
+                                : 'text-orange-600'
+                          }`}
+                        >
+                          {b.statusText}
+                          {b.statusType !== 'settled' && `: $${b.amount.toFixed(2)}`}
+                        </span>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               )}
             </TabsContent>
 
-            <TabsContent value="balances" className="mt-6">
-              <Card className="p-6 rounded-2xl border-0 shadow-sm text-slate-500 text-sm">
-                Balances breakdown view goes here.
-              </Card>
-            </TabsContent>
-
+            {/* MEMBERS TAB */}
             <TabsContent value="members" className="mt-6">
-              <Card className="p-6 rounded-2xl border-0 shadow-sm text-slate-500 text-sm">
-                Group members list view goes here.
-              </Card>
+              {isLoadingMembers ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-16 w-full rounded-2xl" />
+                  <Skeleton className="h-16 w-full rounded-2xl" />
+                </div>
+              ) : members.length === 0 ? (
+                <Card className="p-8 text-center text-slate-500 rounded-2xl border-0 shadow-sm bg-white">
+                  No members found in this group.
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {members.map((member) => (
+                    <Card
+                      key={member.id}
+                      className="rounded-2xl border-0 shadow-sm bg-white hover:shadow-md transition-shadow"
+                    >
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10 rounded-full border shrink-0">
+                            {member.profile_image_url && (
+                              <AvatarImage
+                                src={member.profile_image_url}
+                                alt={member.name}
+                                className="object-cover"
+                              />
+                            )}
+                            <AvatarFallback className="bg-blue-50 text-blue-600 font-bold">
+                              {getInitials(member.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="font-bold text-slate-900 text-sm">
+                                {member.name}
+                              </h4>
+                              {member.role === 'admin' && (
+                                <ShieldCheck className="w-4 h-4 text-amber-500" />
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                              <Mail className="w-3 h-3" />
+                              {member.email}
+                            </p>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${
+                            member.role === 'admin'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}
+                        >
+                          {member.role || 'member'}
+                        </span>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
 
-        <GroupBalancesCard balances={group.balances} />
+        <GroupBalancesCard balances={groupBalances} isLoading={isLoadingBalance} />
       </div>
     </div>
   )

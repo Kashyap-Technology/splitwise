@@ -7,6 +7,7 @@ from apps.expenses.views import (
     ExpenseDeleteApi,
     ExpenseUpdateApi,
     GroupBalanceApi,
+    GroupExpenseListApi,
     GroupSettlementApi,
 )
 
@@ -14,6 +15,7 @@ urlpatterns = [
     path("category/create/", CategoryCreateApi.as_view(), name="create-category"),
     path("category/list/", CategoryListApi.as_view(), name="create-category"),
     path("<int:group_id>/create/", ExpenseCreateApi.as_view(), name="create"),
+    path("<int:group_id>/expenses/", GroupExpenseListApi.as_view(), name="group-expenses"),
     path("<int:expense_id>/update/", ExpenseUpdateApi.as_view(), name="update"),
     path("<int:expense_id>/delete/", ExpenseDeleteApi.as_view(), name="delete"),
     path(

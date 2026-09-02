@@ -10,3 +10,5 @@ __pycache__/
 
 # media 
 media/
+
+node_modules/

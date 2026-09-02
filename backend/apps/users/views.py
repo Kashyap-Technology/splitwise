@@ -9,8 +9,8 @@ from rest_framework.generics import CreateAPIView
 
 from apps.core.api.responses import api_success
 from apps.core.models import AuditLog
-from apps.core.services import create_audit_log
-from apps.users.selectors import list_user
+from apps.core.services import create_audit_log, get_storj_public_url
+from apps.users.selectors import list_user, search_users
 from apps.users.services import (
     create_user,
     delete_user,
@@ -38,6 +38,12 @@ class UserCreateAPi(APIView):
     class OutputSerializer(serializers.Serializer):
         id = serializers.IntegerField()
         email = serializers.EmailField()
+        name = serializers.CharField()
+        profile_imagekey = serializers.CharField(allow_null=True, required=False)
+        profile_image_url = serializers.SerializerMethodField()
+
+        def get_profile_image_url(self, obj):
+            return get_storj_public_url(image_key=obj.profile_imagekey)
 
     def post(self, request):
         serializer = self.InputSerializer(data=request.data)
@@ -49,6 +55,43 @@ class UserCreateAPi(APIView):
             data=self.OutputSerializer(user).data,
             message="User Created Successfully",
             status_code=status.HTTP_201_CREATED,
+        )
+
+
+class UserSearchApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    class InputSerializer(serializers.Serializer):
+        q = serializers.CharField(required=False, allow_blank=True)
+
+    class OutputSerializer(serializers.Serializer):
+        id = serializers.IntegerField()
+        email = serializers.EmailField()
+        name = serializers.CharField()
+        phone = serializers.CharField(allow_null=True, required=False)
+        profile_imagekey = serializers.CharField(allow_null=True, required=False)
+        profile_image_url = serializers.SerializerMethodField()
+
+        def get_profile_image_url(self, obj):
+            return get_storj_public_url(image_key=obj.profile_imagekey)
+
+    def get(self, request):
+        query = request.query_params.get("q", "").strip()
+
+        if not query:
+            return api_success(
+                data=[],
+                message="No search query provided.",
+                status_code=status.HTTP_200_OK,
+            )
+
+        users = search_users(query=query)
+        serializer = self.OutputSerializer(users, many=True)
+
+        return api_success(
+            data=serializer.data,
+            message="Users fetched successfully.",
+            status_code=status.HTTP_200_OK,
         )
 
 
@@ -64,6 +107,13 @@ class UserUpdateApi(APIView):
     class OutputSerializer(serializers.Serializer):
         id = serializers.IntegerField()
         email = serializers.EmailField()
+        name = serializers.CharField()
+        phone = serializers.CharField(allow_null=True, required=False)
+        profile_imagekey = serializers.CharField(allow_null=True, required=False)
+        profile_image_url = serializers.SerializerMethodField()
+
+        def get_profile_image_url(self, obj):
+            return get_storj_public_url(image_key=obj.profile_imagekey)
 
     def patch(self, request):
         serializer = self.InputSerializer(data=request.data, partial=True)
@@ -138,6 +188,12 @@ class UserMeApi(APIView):
         id = serializers.IntegerField()
         email = serializers.EmailField()
         name = serializers.CharField()
+        phone = serializers.CharField(allow_null=True, required=False)
+        profile_imagekey = serializers.CharField(allow_null=True, required=False)
+        profile_image_url = serializers.SerializerMethodField()
+
+        def get_profile_image_url(self, obj):
+            return get_storj_public_url(image_key=obj.profile_imagekey)
 
     def get(self, request):
         return api_success(
@@ -154,6 +210,12 @@ class UserListApi(APIView):
         id = serializers.IntegerField()
         name = serializers.CharField()
         email = serializers.EmailField()
+        phone = serializers.CharField(allow_null=True, required=False)
+        profile_imagekey = serializers.CharField(allow_null=True, required=False)
+        profile_image_url = serializers.SerializerMethodField()
+
+        def get_profile_image_url(self, obj):
+            return get_storj_public_url(image_key=obj.profile_imagekey)
 
     def get(self, request):
         users = list_user()

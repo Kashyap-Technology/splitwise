@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.core.api.responses import api_success
+from apps.core.services import get_storj_public_url
 from apps.groups.models import Group
 from apps.groups.selectors import (
     get_group_by_id,
@@ -39,7 +40,11 @@ class GroupListApi(APIView):
         name = serializers.CharField()
         description = serializers.CharField()
         group_imagekey = serializers.CharField(allow_null=True)
+        group_image_url = serializers.SerializerMethodField()
         created_by = UserSerializer()
+
+        def get_group_image_url(self, obj):
+            return get_storj_public_url(image_key=obj.group_imagekey)
 
     def get(self, request):
         groups = list_group()
@@ -77,6 +82,10 @@ class GroupCreateApi(APIView):
         name = serializers.CharField()
         description = serializers.CharField()
         group_imagekey = serializers.CharField(allow_null=True)
+        group_image_url = serializers.SerializerMethodField()
+
+        def get_group_image_url(self, obj):
+            return get_storj_public_url(image_key=obj.group_imagekey)
 
     def post(self, request):
         serializer = self.InputSerializer(data=request.data)
@@ -142,7 +151,11 @@ class GroupMemberListpApi(APIView):
         id = serializers.IntegerField(source="user.id")
         name = serializers.CharField(source="user.name")
         email = serializers.EmailField(source="user.email")
+        profile_image_url = serializers.SerializerMethodField()
         role = serializers.CharField()
+
+        def get_profile_image_url(self, obj):
+            return get_storj_public_url(image_key=obj.user.profile_imagekey)
 
     def get(self, request, group_id):
         group = get_group_for_member(group_id=group_id, user=request.user)
@@ -166,6 +179,10 @@ class UserGroupApi(APIView):
         name = serializers.CharField()
         description = serializers.CharField()
         group_imagekey = serializers.CharField()
+        group_image_url = serializers.SerializerMethodField()
+
+        def get_group_image_url(self, obj):
+            return get_storj_public_url(image_key=obj.group_imagekey)
 
     def get(self, request):
         groups = get_user_groups(user=request.user)
@@ -217,6 +234,10 @@ class GroupUpdateApi(APIView):
         name = serializers.CharField()
         description = serializers.CharField()
         group_imagekey = serializers.CharField(allow_null=True)
+        group_image_url = serializers.SerializerMethodField()
+
+        def get_group_image_url(self, obj):
+            return get_storj_public_url(image_key=obj.group_imagekey)
 
     def patch(self, request, group_id):
         serializer = self.InputSerializer(data=request.data, partial=True)

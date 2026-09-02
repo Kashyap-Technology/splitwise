@@ -12,13 +12,13 @@ export type GroupExpense = {
   yourAmount: number
 }
 
-export type GroupBalance = {
-  id: string
+export interface GroupBalance {
+  id: number
   name: string
-  avatarUrl: string
-  statusText: string
+  avatarUrl?: string
   amount: number
-  statusType: GroupBalanceStatus
+  statusType: 'credit' | 'debit' | 'settled'
+  statusText: string
 }
 
 export type GroupDetails = {
