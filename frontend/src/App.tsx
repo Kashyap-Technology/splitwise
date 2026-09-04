@@ -1,25 +1,30 @@
-import { RouterProvider, createRouter } from "@tanstack/react-router";
-import { routeTree } from "./routeTree.gen";
-import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useEffect, useRef } from 'react'
+import { RouterProvider, useRouter } from '@tanstack/react-router'
+import { router } from './router'
+import { useAuth } from '@/features/auth/hooks/useAuth'
 
-const router = createRouter({
-  routeTree,
-  context: { auth: undefined! },
-});
+function InnerApp() {
+  const auth = useAuth()
+  const wasAuthenticated = useRef(auth.isAuthenticated)
 
-declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
+  useEffect(() => {
+    if (wasAuthenticated.current && !auth.isAuthenticated) {
+      router.navigate({ to: '/login', replace: true })
+    }
+    wasAuthenticated.current = auth.isAuthenticated
+  }, [auth.isAuthenticated])
+
+  if (auth.isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white text-slate-600 font-medium text-sm">
+        Loading session...
+      </div>
+    )
   }
+
+  return <RouterProvider router={router} context={{ auth }} />
 }
 
 export default function App() {
-  const auth = useAuth();
-
-  // Block route rendering until initial session check finishes
-  if (auth.isLoading) {
-    return <div className="flex h-screen items-center justify-center">Loading session...</div>;
-  }
-
-  return <RouterProvider router={router} context={{ auth }} />;
+  return <InnerApp />
 }

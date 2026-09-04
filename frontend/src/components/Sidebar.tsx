@@ -27,6 +27,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import {useLogoutMutation} from '@/features/auth/api/useLogoutMutation'
 
 interface NavItem {
   label: string;
@@ -49,6 +51,20 @@ const secondaryNavItems: NavItem[] = [
 
 export function Sidebar({ className = "" }: { className?: string }) {
   const location = useLocation();
+  
+  const { user,isLoading } = useAuth();
+
+  const {mutate:logout,isPending}=useLogoutMutation()
+
+  const getInitials = (name?: string) => {
+    if (!name) return "U";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2);
+  };
 
   return (
     <aside className={`w-64 h-full bg-white text-slate-700 flex flex-col justify-between border-r border-slate-200 select-none ${className}`}>
@@ -178,13 +194,17 @@ export function Sidebar({ className = "" }: { className?: string }) {
               >
                 <div className="flex items-center gap-3">
                   <Avatar className="w-8 h-8 ring-1 ring-slate-200">
-                    <AvatarImage src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100" alt="Alex Chen" />
-                    <AvatarFallback className="bg-slate-100 text-slate-700">AC</AvatarFallback>
+                    <AvatarImage src={user?.profile_image_url} alt={user?.name || "User Avatar"} />
+                    <AvatarFallback className="bg-slate-100 text-slate-700 text-xs font-semibold">
+                      {isLoading ? "..." : getInitials(user?.name)}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="text-left leading-tight">
-                    <span className="text-xs font-bold text-slate-900 block">Alex Chen</span>
+                    <span className="text-xs font-bold text-slate-900 block">
+                      {isLoading ? "Loading..." : user?.name || "Guest User"}
+                    </span>
                     <span className="text-[10px] text-slate-500 font-medium truncate block max-w-[110px]">
-                      alex@splitsy.app
+                      {isLoading ? "..." : user?.email || ""}
                     </span>
                   </div>
                 </div>
@@ -193,17 +213,21 @@ export function Sidebar({ className = "" }: { className?: string }) {
             }
           />
           <DropdownMenuContent className="w-56 bg-white border-slate-200 text-slate-800" align="end" side="top">
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none text-slate-900">Alex Chen</p>
-                <p className="text-xs leading-none text-slate-500">alex@splitsy.app</p>
-              </div>
-            </DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none text-slate-900">{user?.name}</p>
+                  <p className="text-xs leading-none text-slate-500">{user?.email}</p>
+                </div>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator className="bg-slate-100" />
             <DropdownMenuGroup>
-              <DropdownMenuItem className="focus:bg-slate-100 focus:text-slate-900 cursor-pointer">
-                <CreditCard className="w-4 h-4 mr-2" /> Billing
-              </DropdownMenuItem>
+              <Link to="/me" className="block">
+                <DropdownMenuItem className="focus:bg-slate-100 focus:text-slate-900 cursor-pointer">
+                  <CreditCard className="w-4 h-4 mr-2" /> Profile & Billing
+                </DropdownMenuItem>
+              </Link>
               <DropdownMenuItem className="focus:bg-slate-100 focus:text-slate-900 cursor-pointer">
                 <Bell className="w-4 h-4 mr-2" /> Notifications
               </DropdownMenuItem>
@@ -212,8 +236,8 @@ export function Sidebar({ className = "" }: { className?: string }) {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator className="bg-slate-100" />
-            <DropdownMenuItem className="focus:bg-rose-50 text-rose-600 focus:text-rose-700 cursor-pointer">
-              <LogOut className="w-4 h-4 mr-2" /> Log out
+            <DropdownMenuItem className="focus:bg-rose-50 text-rose-600 focus:text-rose-700 cursor-pointer" onClick={(e)=>{e.preventDefault();logout()}} disabled={isPending}>
+              <LogOut className="w-4 h-4 mr-2" /> {isPending?"Logging out...":"Log out"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

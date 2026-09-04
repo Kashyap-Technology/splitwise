@@ -39,6 +39,10 @@ export interface UserGroupResponse {
   name: string;
   description?: string;
   group_image_url?: string | null;
+  member_count?: number;
+  total_expenses?: number;
+  your_balance?: number;
+  balance_status?: 'credit' | 'settled' | 'debt';
 }
 
 export interface GroupMemberResponse {
@@ -57,9 +61,9 @@ export interface GroupBalanceResponse {
 
 export type GroupBalances = Record<string, number>;
 
-// ==========================================
+
 // Group Detail Response Interfaces
-// ==========================================
+
 
 export interface GroupDetailResponse {
   success: boolean;

@@ -29,3 +29,14 @@ export interface ExpenseResponse {
   category_name: string
 
 }
+
+export interface UserExpensesResponse{
+  id:number
+  title:string
+  split_type:string
+  amount:string
+  category_id:number
+  category_name:string
+  group_id:number
+  group_name:string
+}

@@ -15,7 +15,7 @@ return useMutation({
     mutationFn:(data:SettlementCreate)=>settlementCreateApi(groupId,data),
     onSuccess:()=>{
     queryClient.invalidateQueries({queryKey:['group-settlement',groupId]})
-    queryClient.invalidateQueries({queryKey:['user-settlement',groupId]})
+    queryClient.invalidateQueries({queryKey:['user-settlements']})
     queryClient.invalidateQueries({queryKey:['group-balance',groupId]})
 }
 

@@ -55,15 +55,16 @@ type GroupItem = {
   name: string
   description?: string
   group_image_url?: string
-  members_count?: number
+  member_count?: number
   updated_at?: string
-  total_spend?: number
-  user_balance?: number // positive = owed to user, negative = user owes, 0 = settled
+  total_expenses?: number
+  your_balance?: number // positive = owed to user, negative = user owes, 0 = settled
 }
 
 export function RouteComponent() {
   const { data: rawGroups = [], isLoading, isError } = useGroupQuery()
   const groups = rawGroups as GroupItem[]
+  console.log('groups',groups)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [topSearchQuery, setTopSearchQuery] = useState('')
@@ -372,9 +373,9 @@ export function RouteComponent() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredGroups.map((group, index) => {
               const accentClass = cardAccents[index % cardAccents.length]
-              const userBalance = group.user_balance ?? 0
-              const totalSpend = group.total_spend ?? 0
-              const membersCount = group.members_count ?? 1
+              const userBalance = group.your_balance ?? 0
+              const totalSpend = group.total_expenses?? 0
+              const membersCount = group.member_count ?? 1
 
               return (
                 <Link
@@ -391,13 +392,13 @@ export function RouteComponent() {
 
                     {/* Member Count Pill */}
                     <div className="absolute top-5 right-5 z-10 flex items-center gap-1.5 px-3 py-1 bg-white/70 backdrop-blur-md rounded-full text-xs font-semibold text-slate-700 shadow-2xs">
-                      <Users className="w-3.5 h-3.5 text-slate-600" />
-                      <span>{membersCount}</span>
+                      <Users className="w-5.5 h-5.5 text-slate-600" />
+                      <span className='text-lg'>{membersCount}</span>
                     </div>
 
                     <CardHeader className="p-0 space-y-0 relative z-10">
                       {/* Avatar Icon */}
-                      <Avatar className="h-14 w-14 rounded-2xl border border-slate-100 shadow-2xs shrink-0 mb-4 bg-slate-50">
+                      <Avatar className="h-28 w-28 rounded-2xl border border-slate-100 shadow-2xs shrink-0 mb-4 bg-slate-50">
                         {group.group_image_url && (
                           <AvatarImage src={group.group_image_url} alt={group.name} className="object-cover" />
                         )}
@@ -408,10 +409,10 @@ export function RouteComponent() {
 
                       {/* Title & Timestamp */}
                       <div className="space-y-1">
-                        <CardTitle className="font-bold text-slate-900 text-xl tracking-tight line-clamp-1">
+                        <CardTitle className="font-bold text-slate-900 text-2xl tracking-tight line-clamp-1">
                           {group.name}
                         </CardTitle>
-                        <CardDescription className="text-xs font-medium text-slate-400">
+                        <CardDescription className=" font-medium text-slate-400">
                           {group.updated_at ? `Updated ${group.updated_at}` : 'Updated recently'}
                         </CardDescription>
                       </div>

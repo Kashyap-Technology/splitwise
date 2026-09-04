@@ -28,6 +28,7 @@ import { useCreateExpenseMutation } from '@/features/expense/api/useExpenseMutat
 import { useExpenseCategoryQuery } from '@/features/expense/api/useExpenseQuery'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useInviteMemberMutation } from '@/features/group/api/useInviteMemberMutation'
+import { useGroupUpdateMutation } from '@/features/group/api/useGroupMutation'
 
 import { ExpenseFormDialog } from './components/ExpenseFormDialog'
 import { InviteMemberDialog } from './components/InviteMemberDialog'
@@ -35,6 +36,7 @@ import { GroupBalancesCard } from './components/GroupBalancesCard'
 import { GroupHeader } from './components/GroupHeader'
 import { SummaryCard } from './components/SummaryCard'
 import type { GroupBalance } from './components/types'
+import { EditGroupDialog } from './components/EditGroupDialog'
 
 export interface SettlementSuggestion {
   from_user: string
@@ -158,6 +160,7 @@ export function getSettlementSuggestions(group?: {
 function GroupDetailComponent() {
   const { groupId } = Route.useParams()
   const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false)
+  const [isEditGroupDialogOpen, setIsEditGroupDialogOpen] = useState(false)
   const [isMemberDialogOpen, setIsMemberDialogOpen] = useState(false)
 
   const { user: currentUser } = useAuth()
@@ -170,6 +173,7 @@ function GroupDetailComponent() {
   const { data: categories, isLoading: isLoadingCategories } = useExpenseCategoryQuery()
   const { mutate: inviteMember, isPending: isInvitePending } = useInviteMemberMutation()
   const { mutate: createExpense, isPending: isExpensePending } = useCreateExpenseMutation()
+  const { mutate: updateGroup, isPending: isUpdateGroupPending } = useGroupUpdateMutation(groupId)
 
   const form = useForm<CreateExpenseInput>({
     resolver: zodResolver(expenseSchema) as any,
@@ -242,6 +246,8 @@ function GroupDetailComponent() {
       <GroupHeader
         name={group.name}
         description={group.description || 'No description provided'}
+        groupImageUrl={group.group_image_url}
+        onEditGroup={()=>setIsEditGroupDialogOpen(true)}
         onAddExpense={() => setIsExpenseDialogOpen(true)}
         onAddMember={() => setIsMemberDialogOpen(true)}
       />
@@ -268,6 +274,19 @@ function GroupDetailComponent() {
           <Wallet className="absolute right-4 bottom-4 w-28 h-28 text-orange-200/40 pointer-events-none" />
         </div>
       </div>
+      <EditGroupDialog
+        isOpen={isEditGroupDialogOpen}
+        onOpenChange={setIsEditGroupDialogOpen}
+        group={group}
+        isPending={isUpdateGroupPending}
+        onSave={(formData) => {
+          updateGroup(formData, {
+            onSuccess: () => {
+              setIsEditGroupDialogOpen(false)
+            },
+          })
+        }}
+      />
 
       <ExpenseFormDialog
         isOpen={isExpenseDialogOpen}

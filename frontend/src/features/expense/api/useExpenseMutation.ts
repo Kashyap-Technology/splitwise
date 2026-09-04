@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
 import { CreateExpenseInput } from '../schemas/expenseSchema'
+import { ExpenseResponse } from '../types/expense.types'
 
 interface CreateExpenseParams {
   groupId: string
@@ -17,8 +18,47 @@ export function useCreateExpenseMutation() {
 
   return useMutation({
     mutationFn: createExpenseApi,
-    onSuccess: async (_data, variables) => {
-      // Invalidate the group details query so fresh expenses and balances are fetched
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ['expenses', variables.groupId] })
+      const previousExpenses = queryClient.getQueryData<ExpenseResponse[]>([
+        'expenses',
+        variables.groupId,
+      ])
+      const hadExpensesQuery = queryClient.getQueryState([
+        'expenses',
+        variables.groupId,
+      ]) !== undefined
+      const categories = queryClient.getQueryData<Array<{ id: number; name: string }>>([
+        'categories',
+      ])
+      const optimisticExpense: ExpenseResponse = {
+        id: -Date.now(),
+        title: variables.data.title,
+        amount: variables.data.amount,
+        split_type: variables.data.split_type,
+        category_id: variables.data.category_id,
+        category_name:
+          categories?.find((category) => category.id === variables.data.category_id)?.name ?? '',
+      }
+
+      if (previousExpenses) {
+        queryClient.setQueryData<ExpenseResponse[]>(
+          ['expenses', variables.groupId],
+          [...previousExpenses, optimisticExpense],
+        )
+      }
+
+      return { previousExpenses, hadExpensesQuery }
+    },
+    onError: (_error, variables, context) => {
+      if (context?.previousExpenses !== undefined) {
+        queryClient.setQueryData(['expenses', variables.groupId], context.previousExpenses)
+      } else if (context?.hadExpensesQuery) {
+        queryClient.removeQueries({ queryKey: ['expenses', variables.groupId], exact: true })
+      }
+    },
+    onSettled: async (_data, _error, variables) => {
+      // Reconcile the optimistic row with server-generated fields and derived totals.
       await queryClient.invalidateQueries({
         queryKey: ['group', variables.groupId],
       })
@@ -27,6 +67,9 @@ export function useCreateExpenseMutation() {
       })
       await queryClient.invalidateQueries({
         queryKey: ['group-balance', variables.groupId],
+      })
+      await queryClient.invalidateQueries({
+        queryKey: ['user-expenses'],
       })
     },
   })

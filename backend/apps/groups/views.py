@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.db.models import Prefetch
+from django.db.models import Count, OuterRef, Prefetch, Subquery, Sum
 from rest_framework import serializers, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -9,9 +9,10 @@ from rest_framework.views import APIView
 from apps.core.api.responses import api_success
 from apps.core.services import get_storj_public_url
 from apps.expenses.models import Expense
-from apps.groups.models import Group
+from apps.groups.models import Group, GroupMembership
 from apps.groups.selectors import (
     get_group_by_id,
+    get_group_balance,
     get_group_for_member,
     get_group_member_list,
     get_invitation_by_token,
@@ -389,16 +390,50 @@ class UserGroupApi(APIView):
         description = serializers.CharField()
         group_imagekey = serializers.CharField()
         group_image_url = serializers.SerializerMethodField()
+        member_count = serializers.IntegerField()
+        total_expenses = serializers.DecimalField(
+            max_digits=10, decimal_places=5, coerce_to_string=False
+        )
+        your_balance = serializers.SerializerMethodField()
+        balance_status = serializers.SerializerMethodField()
 
         def get_group_image_url(self, obj):
             return get_storj_public_url(image_key=obj.group_imagekey)
 
+        def get_your_balance(self, obj):
+            user = self.context["request"].user
+            return get_group_balance(group=obj).get(user.id, Decimal("0"))
+
+        def get_balance_status(self, obj):
+            balance = self.get_your_balance(obj)
+            if balance > 0:
+                return "credit"
+            if balance < 0:
+                return "debt"
+            return "settled"
+
     def get(self, request):
-        groups = get_user_groups(user=request.user)
+        member_counts = (
+            GroupMembership.objects.filter(group=OuterRef("pk"))
+            .values("group")
+            .annotate(count=Count("user", distinct=True))
+            .values("count")
+        )
+        total_expenses = (
+            Expense.objects.filter(group=OuterRef("pk"))
+            .values("group")
+            .annotate(total=Sum("amount"))
+            .values("total")
+        )
+        groups = get_user_groups(user=request.user).annotate(
+            member_count=Subquery(member_counts),
+            total_expenses=Subquery(total_expenses),
+        )
 
         serializer = self.OutputSerializer(
             groups,
             many=True,
+            context={"request": request},
         )
 
         return api_success(
