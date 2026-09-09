@@ -28,7 +28,7 @@ import { useCreateExpenseMutation } from '@/features/expense/api/useExpenseMutat
 import { useExpenseCategoryQuery } from '@/features/expense/api/useExpenseQuery'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useInviteMemberMutation } from '@/features/group/api/useInviteMemberMutation'
-import { useGroupUpdateMutation } from '@/features/group/api/useGroupMutation'
+import { useGroupDeleteMutation, useGroupUpdateMutation } from '@/features/group/api/useGroupMutation'
 
 import { ExpenseFormDialog } from './components/ExpenseFormDialog'
 import { InviteMemberDialog } from './components/InviteMemberDialog'
@@ -37,6 +37,7 @@ import { GroupHeader } from './components/GroupHeader'
 import { SummaryCard } from './components/SummaryCard'
 import type { GroupBalance } from './components/types'
 import { EditGroupDialog } from './components/EditGroupDialog'
+import { DeleteGroupDialog } from './components/DeleteGroupDialog'
 
 export interface SettlementSuggestion {
   from_user: string
@@ -161,6 +162,7 @@ function GroupDetailComponent() {
   const { groupId } = Route.useParams()
   const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false)
   const [isEditGroupDialogOpen, setIsEditGroupDialogOpen] = useState(false)
+  const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false)
   const [isMemberDialogOpen, setIsMemberDialogOpen] = useState(false)
 
   const { user: currentUser } = useAuth()
@@ -173,6 +175,7 @@ function GroupDetailComponent() {
   const { data: categories, isLoading: isLoadingCategories } = useExpenseCategoryQuery()
   const { mutate: inviteMember, isPending: isInvitePending } = useInviteMemberMutation()
   const { mutate: createExpense, isPending: isExpensePending } = useCreateExpenseMutation()
+  const { mutate: deleteGroup, isPending: isGroupDeletePending} = useGroupDeleteMutation(groupId)
   const { mutate: updateGroup, isPending: isUpdateGroupPending } = useGroupUpdateMutation(groupId)
 
   const form = useForm<CreateExpenseInput>({
@@ -237,6 +240,9 @@ function GroupDetailComponent() {
       }
     )
   }
+  const onConfirmDelete = () => {
+    deleteGroup()
+  }
 
   if (isLoadingGroup) return <GroupDetailSkeleton />
   if (!group) return <div className="p-10 text-center text-slate-500">Group not found</div>
@@ -248,6 +254,7 @@ function GroupDetailComponent() {
         description={group.description || 'No description provided'}
         groupImageUrl={group.group_image_url}
         onEditGroup={()=>setIsEditGroupDialogOpen(true)}
+        onDeleteGroup={()=>setIsDeleteGroupDialogOpen(true)}
         onAddExpense={() => setIsExpenseDialogOpen(true)}
         onAddMember={() => setIsMemberDialogOpen(true)}
       />
@@ -319,6 +326,14 @@ function GroupDetailComponent() {
           )
         }}
         isPending={isInvitePending}
+      />
+      <DeleteGroupDialog
+        isOpen={isDeleteGroupDialogOpen}
+        onOpenChange={setIsDeleteGroupDialogOpen}
+        groupName={group.name}
+        isPending={isGroupDeletePending}
+        onConfirm={onConfirmDelete}
+        onCancel={() => setIsDeleteGroupDialogOpen(false)}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">

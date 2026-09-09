@@ -1,4 +1,4 @@
-import { Plus, UserPlus, SquarePen } from 'lucide-react'
+import { Plus, UserPlus, SquarePen,Trash } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
@@ -16,12 +16,14 @@ export function GroupHeader({
   groupImageUrl,
   onEditGroup,
   onAddExpense,
+  onDeleteGroup,
   onAddMember,
 }: {
   name: string
   description: string
   groupImageUrl?: string | null
   onEditGroup: () => void
+  onDeleteGroup:()=>void
   onAddExpense: () => void
   onAddMember: () => void
 }) {
@@ -77,6 +79,14 @@ export function GroupHeader({
         >
           <Plus className="w-4 h-4" />
           <span>Add Expense</span>
+        </Button>
+<Button
+          onClick={onDeleteGroup}
+          className="rounded-full px-5 h-10 bg-red-600 hover:bg-red-700 text-white font-medium shadow-sm transition-colors cursor-pointer"
+        >
+          {/* <Plus className="w-4 h-4" /> */}
+<Trash className='w-4 h-4'/>
+          <span className='font-bold'>Delete Group</span>
         </Button>
       </div>
     </div>

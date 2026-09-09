@@ -13,6 +13,11 @@ async function groupUpdateApi(groupId: string | number, formData: FormData) {
   return response.data
 }
 
+async function groupDeleteApi(groupId:string|number){
+    const response=await api.delete(`/groups/${groupId}/delete/`)
+    return response.data
+}
+
 export function useGroupMutation(){
     const navigate=useNavigate()
     const queryClient=useQueryClient()
@@ -63,6 +68,42 @@ export function useGroupUpdateMutation(groupId: string | number) {
     },
     onError: (error: any) => {
       console.error('Group update failed:', error.response?.data || error.message)
+    },
+  })
+}
+
+export function useGroupDeleteMutation(groupId: string | number) {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+
+  return useMutation({
+    mutationFn: () => groupDeleteApi(groupId),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['groups'] })
+
+      const previousGroups = queryClient.getQueryData<UserGroupResponse[]>(['groups'])
+
+      if (previousGroups) {
+        queryClient.setQueryData<UserGroupResponse[]>(
+          ['groups'],
+          previousGroups.filter((group) => String(group.id) !== String(groupId))
+        )
+      }
+
+      return { previousGroups }
+    },
+    onError: (error: any, _variables, context) => {
+      if (context?.previousGroups !== undefined) {
+        queryClient.setQueryData(['groups'], context.previousGroups)
+      }
+      console.error('Group delete failed:', error.response?.data || error.message)
+    },
+    onSuccess: () => {
+      navigate({ to: '/groups' })
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups'] })
+      queryClient.removeQueries({ queryKey: ['group', String(groupId)] })
     },
   })
 }
