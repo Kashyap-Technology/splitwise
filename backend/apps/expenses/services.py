@@ -37,12 +37,16 @@ def _validate_group_members(*, group, user_ids):
 
 
 def _calculate_payer_amount(*, amount, payers):
-    total_paid_amount = sum(payer["amount_paid"] for payer in payers)
+    total_paid_amount = sum(
+        (Decimal(str(payer["amount_paid"])) for payer in payers), Decimal("0")
+    )
 
-    if total_paid_amount != amount:
+    if total_paid_amount != Decimal(str(amount)):
         raise InvalidPaidAmount()
 
-    amounts = {payer["user_id"]: payer["amount_paid"] for payer in payers}
+    amounts = {
+        payer["user_id"]: Decimal(str(payer["amount_paid"])) for payer in payers
+    }
     return amounts
 
 
@@ -52,7 +56,8 @@ def _calculate_equal_split(*, amount, participants):
 
     no_of_participants = len(user_ids)
 
-    split_amount = Decimal(amount / no_of_participants).quantize(
+    amount = Decimal(str(amount))
+    split_amount = (amount / no_of_participants).quantize(
         Decimal("0.01"), rounding=ROUND_HALF_UP
     )
 
@@ -75,28 +80,44 @@ def _calculate_exact_split(*, amount, participants):
             )
 
     # accumulated amounts from participants must match amount
-    total_paid = sum(p["amount_to_pay"] for p in participants)
+    total_paid = sum(
+        (Decimal(str(p["amount_to_pay"])) for p in participants), Decimal("0")
+    )
 
-    if total_paid != amount:
+    if total_paid != Decimal(str(amount)):
         raise InvalidExactSplitError()
 
-    amounts = {p["user_id"]: p["amount_to_pay"] for p in participants}
+    amounts = {
+        p["user_id"]: Decimal(str(p["amount_to_pay"])) for p in participants
+    }
 
     return amounts
 
 
 def _calculate_percentage_split(*, amount, participants):
-    if sum(participant["amount_to_pay"] for participant in participants) > 100.00:
+    if any(participant.get("percentage") is None for participant in participants):
+        raise ValidationError(
+            "All the participants need a percentage for percentage type."
+        )
+
+    total_percentage = sum(
+        (Decimal(str(participant.get("percentage", 0))) for participant in participants),
+        Decimal("0"),
+    )
+    if total_percentage != Decimal("100"):
         raise ValidationError("Total percentage must sum to 100.")
 
-    # calculate amount_to_pay for each participant
-    amount = {
-        p["user_id"]: Decimal((p["amount_to_pay"] / 100) * amount).quantize(
-            Decimal("0.00001"), rounding=ROUND_HALF_UP
-        )
-        for p in participants
-    }
-    return amount
+    total_amount = Decimal(str(amount))
+    amounts = {}
+    for participant in participants:
+        percentage = Decimal(str(participant["percentage"]))
+        amounts[participant["user_id"]] = (
+            percentage / Decimal("100") * total_amount
+        ).quantize(Decimal("0.00001"), rounding=ROUND_HALF_UP)
+
+    remainder = total_amount - sum(amounts.values(), Decimal("0"))
+    amounts[participants[-1]["user_id"]] += remainder
+    return amounts
 
 
 SPLIT_RESOLVERS = {

@@ -9,26 +9,40 @@ import {
   ShieldCheck,
   Mail,
   ArrowRight,
+  UserMinus,
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Button } from '@/components/ui/button'
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-
 import {
-  CreateExpenseInput,
-  expenseSchema,
-} from '@/features/expense/schemas/expenseSchema'
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+
+import { expenseSchema } from '../../../features/expense/schemas/expenseSchema'
+import type { CreateExpenseInput } from '../../../features/expense/schemas/expenseSchema'
 import { useGroupDetailQuery } from '@/features/group/api/useGroupsQuery'
 import { useCreateExpenseMutation } from '@/features/expense/api/useExpenseMutation'
 import { useExpenseCategoryQuery } from '@/features/expense/api/useExpenseQuery'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useInviteMemberMutation } from '@/features/group/api/useInviteMemberMutation'
-import { useGroupDeleteMutation, useGroupUpdateMutation } from '@/features/group/api/useGroupMutation'
+import {
+  useGroupDeleteMutation,
+  useGroupRemoveMemberMutation,
+  useGroupUpdateMutation,
+} from '@/features/group/api/useGroupMutation'
 
 import { ExpenseFormDialog } from './components/ExpenseFormDialog'
 import { InviteMemberDialog } from './components/InviteMemberDialog'
@@ -38,6 +52,7 @@ import { SummaryCard } from './components/SummaryCard'
 import type { GroupBalance } from './components/types'
 import { EditGroupDialog } from './components/EditGroupDialog'
 import { DeleteGroupDialog } from './components/DeleteGroupDialog'
+import { CategoryCreateDialog } from './components/CategoryCreateDialog'
 
 export interface SettlementSuggestion {
   from_user: string
@@ -164,6 +179,11 @@ function GroupDetailComponent() {
   const [isEditGroupDialogOpen, setIsEditGroupDialogOpen] = useState(false)
   const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false)
   const [isMemberDialogOpen, setIsMemberDialogOpen] = useState(false)
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false)
+  const [memberToRemove, setMemberToRemove] = useState<{
+    id: string | number
+    name: string
+  } | null>(null)
 
   const { user: currentUser } = useAuth()
   const currentUserId = currentUser?.data?.id ?? currentUser?.id
@@ -176,7 +196,13 @@ function GroupDetailComponent() {
   const { mutate: inviteMember, isPending: isInvitePending } = useInviteMemberMutation()
   const { mutate: createExpense, isPending: isExpensePending } = useCreateExpenseMutation()
   const { mutate: deleteGroup, isPending: isGroupDeletePending} = useGroupDeleteMutation(groupId)
+  const { mutate: removeMember, isPending: isMemberRemovePending } = useGroupRemoveMemberMutation(groupId)
   const { mutate: updateGroup, isPending: isUpdateGroupPending } = useGroupUpdateMutation(groupId)
+
+  const currentMember = members.find(
+    (member) => String(member.id) === String(currentUserId)
+  )
+  const canRemoveMembers = currentMember?.role === 'admin'
 
   const form = useForm<CreateExpenseInput>({
     resolver: zodResolver(expenseSchema) as any,
@@ -192,6 +218,7 @@ function GroupDetailComponent() {
 
   const { control, handleSubmit, reset } = form
   const watchedAmount = useWatch({ control, name: 'amount' }) || 0
+  const watchedSplitType = useWatch({ control, name: 'split_type' })
 
   const groupBalances = useMemo(() => getGroupBalances(group), [group])
   const settlementSuggestions = useMemo(() => getSettlementSuggestions(group), [group])
@@ -213,18 +240,29 @@ function GroupDetailComponent() {
   ).length
 
   const onExpenseSubmit = (data: CreateExpenseInput) => {
-    const payerCount = data.payers.length
-    const share = payerCount > 0 ? Number((data.amount / payerCount).toFixed(2)) : 0
-
     const payload = {
       ...data,
-      payers: data.payers.map((payer) => ({
-        user_id: Number(payer.user_id),
-        amount_paid: String(share),
-      })),
-      participants: data.participants.map((participant) => ({
-        user_id: Number(participant.user_id),
-      })),
+      payers: data.payers.map(
+        (payer: CreateExpenseInput['payers'][number], index: number) => ({
+          user_id: Number(payer.user_id),
+          amount_paid:
+            data.split_type === 'equal'
+              ? index === data.payers.length - 1
+                ? (data.amount - (data.amount / data.payers.length) * index).toFixed(2)
+                : (data.amount / data.payers.length).toFixed(2)
+              : payer.amount_paid,
+        }),
+      ),
+      participants: data.participants.map(
+        (participant: CreateExpenseInput['participants'][number]) => ({
+          user_id: Number(participant.user_id),
+          ...(data.split_type === 'exact'
+            ? { amount_to_pay: participant.amount_to_pay }
+            : data.split_type === 'percentage'
+              ? { percentage: participant.percentage }
+              : {}),
+        }),
+      ),
     }
 
     createExpense(
@@ -242,6 +280,14 @@ function GroupDetailComponent() {
   }
   const onConfirmDelete = () => {
     deleteGroup()
+  }
+
+  const onConfirmRemoveMember = () => {
+    if (!memberToRemove) return
+
+    removeMember(memberToRemove.id, {
+      onSettled: () => setMemberToRemove(null),
+    })
   }
 
   if (isLoadingGroup) return <GroupDetailSkeleton />
@@ -304,12 +350,18 @@ function GroupDetailComponent() {
         members={members}
         isLoadingMembers={isLoadingGroup}
         watchedAmount={watchedAmount}
+        watchedSplitType={watchedSplitType}
         isPending={isExpensePending}
         onSubmit={handleSubmit(onExpenseSubmit)}
         onCancel={() => {
           setIsExpenseDialogOpen(false)
           reset()
         }}
+      />
+
+      <CategoryCreateDialog
+        isOpen={isCategoryDialogOpen}
+        onOpenChange={setIsCategoryDialogOpen}
       />
 
       <InviteMemberDialog
@@ -339,7 +391,8 @@ function GroupDetailComponent() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2 space-y-6">
           <Tabs defaultValue="expenses" className="w-full">
-            <TabsList className="bg-transparent p-0 h-auto gap-8 border-b border-slate-200 w-full justify-start rounded-none">
+            <div className="flex items-end justify-between gap-3 border-b border-slate-200">
+            <TabsList className="bg-transparent p-0 h-auto gap-8 justify-start rounded-none">
               <TabsTrigger
                 value="expenses"
                 className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-0 pb-3 font-semibold text-slate-500 data-[state=active]:text-blue-600 text-sm"
@@ -359,6 +412,18 @@ function GroupDetailComponent() {
                 Members ({members.length})
               </TabsTrigger>
             </TabsList>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCategoryDialogOpen(true)}
+                className="mb-1 border-slate-200 text-slate-600 hover:text-slate-900"
+                aria-label="Add category"
+              >
+                <Tag className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Category</span>
+              </Button>
+            </div>
 
             {/* EXPENSES TAB */}
             <TabsContent value="expenses" className="mt-6 space-y-3">
@@ -616,15 +681,33 @@ function GroupDetailComponent() {
                             </p>
                           </div>
                         </div>
-
-                        <span
-                          className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize shrink-0 ${member.role === 'admin'
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : 'bg-slate-100 text-slate-600 border border-slate-200'
-                            }`}
-                        >
-                          {member.role || 'member'}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span
+                            className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${member.role === 'admin'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                : 'bg-slate-100 text-slate-600 border border-slate-200'
+                              }`}
+                          >
+                            {member.role || 'member'}
+                          </span>
+                          {canRemoveMembers && member.role !== 'admin' && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 border-red-200 px-2 text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() =>
+                                setMemberToRemove({ id: member.id, name: member.name })
+                              }
+                              disabled={isMemberRemovePending}
+                              aria-label={`Remove ${member.name} from group`}
+                              title={`Remove ${member.name}`}
+                            >
+                              <UserMinus className="h-3.5 w-3.5" />
+                              <span className="hidden md:inline">Remove</span>
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -636,6 +719,33 @@ function GroupDetailComponent() {
 
         <GroupBalancesCard balances={groupBalances} isLoading={isLoadingGroup} />
       </div>
+
+      <AlertDialog
+        open={memberToRemove !== null}
+        onOpenChange={(open) => {
+          if (!open && !isMemberRemovePending) setMemberToRemove(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove member from group?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {memberToRemove?.name} will lose access to this group and its expenses.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isMemberRemovePending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={onConfirmRemoveMember}
+              disabled={isMemberRemovePending}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {isMemberRemovePending ? 'Removing...' : 'Remove member'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

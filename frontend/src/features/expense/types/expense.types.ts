@@ -9,11 +9,11 @@ export interface ApiExpensePayload {
   }>
   participants: Array<{
     user_id: number
+    amount_topay?:number
   }>
 }
 
 export interface ExpenseCategoryResponse {
-
   id: number
   name: string
   icon: null

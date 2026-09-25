@@ -5,6 +5,10 @@ async function updateUserApi(formData:FormData){
     const response=await api.patch('/users/update/',formData)
     return response.data
 }
+async function deleteUserApi(){
+    const response=await api.delete('/users/delete/')
+return response.data
+}
 
 export function useUserUpdateMutation(){
     const queryClient=useQueryClient()
@@ -36,6 +40,37 @@ export function useUserUpdateMutation(){
         },
         onSettled: () => {
             queryClient.invalidateQueries({queryKey:['me']})
+        }
+    })
+}
+
+export function useUserDeleteMutation() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: deleteUserApi,
+        onMutate: async () => {
+            // 1. Cancel outgoing fetch requests for the user query
+            await queryClient.cancelQueries({ queryKey: ['me'] })
+
+            // 2. Snapshot the current user state for potential rollback
+            const previousUser = queryClient.getQueryData(['me'])
+
+            // 3. Optimistically remove user data from cache
+            queryClient.setQueryData(['me'], null)
+
+            // 4. Pass snapshot to context
+            return { previousUser }
+        },
+        onError: (_error, _variables, context) => {
+            // Roll back to snapshot if server request fails
+            if (context?.previousUser !== undefined) {
+                queryClient.setQueryData(['me'], context.previousUser)
+            }
+        },
+        onSettled: () => {
+            // Ensure server state synchronization or cache cleanup
+            queryClient.invalidateQueries({ queryKey: ['me'] })
         }
     })
 }

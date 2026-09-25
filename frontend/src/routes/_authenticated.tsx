@@ -21,19 +21,17 @@ function AuthenticatedLayout() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
 
-  // Automatically close the mobile sheet drawer whenever the route changes
+  // automatically close the mobile sheet drawer whenever the route changes
   useEffect(() => {
     setOpen(false);
   }, [location.pathname]);
 
   return (
     <div className="flex flex-col lg:flex-row h-screen w-full overflow-hidden bg-white">
-      {/* 1. Desktop Static Sidebar (Visible only on lg screens and up) */}
       <div className="hidden lg:block h-full shrink-0">
         <Sidebar />
       </div>
 
-      {/* 2. Mobile Top Bar & Sheet (Visible only on screens smaller than lg) */}
       <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
@@ -56,7 +54,6 @@ function AuthenticatedLayout() {
         </Sheet>
       </div>
 
-      {/* 3. Page Content */}
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>

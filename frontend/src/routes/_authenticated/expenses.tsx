@@ -4,7 +4,6 @@ import { Search, Plus, Filter, Calendar, Utensils, Plane, ShoppingCart, Info } f
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   Dialog,
   DialogContent,

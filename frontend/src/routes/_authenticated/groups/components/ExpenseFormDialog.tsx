@@ -1,4 +1,4 @@
-import { Controller, useForm, type UseFormReturn } from 'react-hook-form'
+import { Controller, useForm, useWatch, type UseFormReturn } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -33,6 +33,7 @@ export function ExpenseFormDialog({
   members,
   isLoadingMembers,
   watchedAmount,
+  watchedSplitType,
   isPending,
   onSubmit,
   onCancel,
@@ -45,6 +46,7 @@ export function ExpenseFormDialog({
   members?: GroupMember[]
   isLoadingMembers: boolean
   watchedAmount: number
+  watchedSplitType: CreateExpenseInput['split_type']
   isPending: boolean
   onSubmit: () => void
   onCancel: () => void
@@ -54,6 +56,9 @@ export function ExpenseFormDialog({
     control,
     formState: { errors },
   } = form
+  const payers = useWatch({ control, name: 'payers' })
+  const equalPayerAmount = watchedAmount / Math.max(payers.length, 1)
+  const roundedEqualPayerAmount = equalPayerAmount.toFixed(2)
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -125,6 +130,43 @@ export function ExpenseFormDialog({
             )}
           </div>
 
+          {watchedSplitType === 'equal' && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-900">
+                Equal payment split
+              </p>
+              {payers.length === 0 ? (
+                <p className="mt-1 text-xs text-slate-500">
+                  Select the payers below to see each person&apos;s share.
+                </p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {payers.map((payer, index) => {
+                    const member = members?.find(
+                      (candidate) => Number(candidate.id) === Number(payer.user_id),
+                    )
+                    const amount =
+                      index === payers.length - 1
+                        ? (watchedAmount - Number(roundedEqualPayerAmount) * index).toFixed(2)
+                        : roundedEqualPayerAmount
+
+                    return (
+                      <div
+                        key={payer.user_id}
+                        className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-slate-200"
+                      >
+                        <span className="font-medium text-slate-700">
+                          {member?.name || payer.user_id}
+                        </span>
+                        <span className="font-semibold text-slate-900">${amount}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="category_id">Category</Label>
             <Controller
@@ -174,6 +216,7 @@ export function ExpenseFormDialog({
             isLoadingMembers={isLoadingMembers}
             errors={errors}
             watchedAmount={watchedAmount}
+            splitType={watchedSplitType}
             mode="payers"
           />
 
@@ -184,6 +227,8 @@ export function ExpenseFormDialog({
             members={members}
             isLoadingMembers={isLoadingMembers}
             errors={errors}
+            watchedAmount={watchedAmount}
+            splitType={watchedSplitType}
             mode="participants"
           />
 

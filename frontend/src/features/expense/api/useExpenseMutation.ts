@@ -74,3 +74,23 @@ export function useCreateExpenseMutation() {
     },
   })
 }
+
+interface CreateCategoryParams {
+  name: string
+}
+
+const createCategoryApi = async ({ name }: CreateCategoryParams) => {
+  const response = await api.post('/expenses/category/create/', { name })
+  return response.data.data
+}
+
+export function useCreateCategoryMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: createCategoryApi,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['categories'] })
+    },
+  })
+}

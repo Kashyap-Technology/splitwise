@@ -1,21 +1,29 @@
-"use client"
-
 import { createFileRoute } from "@tanstack/react-router"
 import { useForm, Controller, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Camera, Check, ShieldCheck, Loader2 } from "lucide-react"
+import { Camera, Check, ShieldCheck, Loader2, AlertTriangle } from "lucide-react"
 import { useMemo, useEffect } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Field, FieldLabel, FieldError, FieldContent } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { compressImage } from "@/lib/compressImage"
-// Adjust this import path based on your actual auth hook location
 import { useAuth } from "@/features/auth/hooks/useAuth" 
-import { useUserUpdateMutation } from "@/features/user/api/useUserMutation"
+import { useUserDeleteMutation, useUserUpdateMutation } from "@/features/user/api/useUserMutation"
 
 export const Route = createFileRoute("/_authenticated/me")({
   component: AccountProfilePage,
@@ -37,7 +45,8 @@ const profileFormSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileFormSchema>
 
 function AccountProfilePage() {
-  const {mutate,isPending} =useUserUpdateMutation()
+  const { mutate, isPending } = useUserUpdateMutation()
+  const { mutate: deleteUser, isPending: deleteUserPending } = useUserDeleteMutation()
   const { user: me, isLoading } = useAuth()
 
   const form = useForm<ProfileFormValues>({
@@ -83,7 +92,6 @@ function AccountProfilePage() {
       formData.append("profile_image", compressed)
     }
     mutate(formData)
-
   }
 
   if (isLoading) {
@@ -137,10 +145,14 @@ function AccountProfilePage() {
             <Button 
               type="submit" 
               form="profile-form"
-              disabled={form.formState.isSubmitting}
+              disabled={form.formState.isSubmitting || isPending}
               className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
             >
-              <Check className="w-4 h-4" />
+              {isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Check className="w-4 h-4" />
+              )}
               Save Changes
             </Button>
           </div>
@@ -225,6 +237,47 @@ function AccountProfilePage() {
                   >
                     Remove
                   </Button>
+
+                  {/* Shadcn Alert Dialog Confirmation */}
+                  <AlertDialog>
+                    <AlertDialogTrigger  render={
+
+                      <Button  
+                        type="button"
+                        disabled={deleteUserPending}
+                        className="w-full font-semibold text-xs bg-rose-600 hover:bg-rose-700 text-white cursor-pointer disabled:opacity-50 mt-2 gap-2"
+                      >
+                        {deleteUserPending ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Deleting Account...
+                          </>
+                        ) : (
+                          "Delete Account"
+                        )}
+                      </Button>
+                    }/>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <div className="flex items-center gap-2 text-rose-600 mb-1">
+                          <AlertTriangle className="w-5 h-5" />
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        </div>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete your account, settings, and remove all your data from our servers.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteUser()}
+                          className="bg-rose-600 hover:bg-rose-700 text-white"
+                        >
+                          Yes, delete account
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
                 
                 <span className="text-[11px] text-muted-foreground mt-3">
