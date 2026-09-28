@@ -53,27 +53,70 @@ def create_user(*, name, email, phone, password, profile_image):
     return user
 
 
-@transaction.atomic
-def update_user(*, user, name, phone, profile_image):
-    if not profile_image:
-        return _update_user_in_db(
-            user=user,
-            name=name,
-            phone=phone,
-            image_key=user.profile_imagekey,
-        )
+# og update user block
+# @transaction.atomic
+# def update_user(*, user, name, phone, profile_image):
+#     if not profile_image:
+#         return _update_user_in_db(
+#             user=user,
+#             name=name,
+#             phone=phone,
+#             image_key=user.profile_imagekey,
+#         )
 
-    if user.profile_imagekey:
-        _delete_from_storj(image_key=user.profile_imagekey)
+#     if user.profile_imagekey:
+#         _delete_from_storj(image_key=user.profile_imagekey)
 
-    image_key = _upload_to_storj(folder="profiles", image=profile_image)
+#     image_key = _upload_to_storj(folder="profiles", image=profile_image)
 
-    return _update_user_in_db(
-        user=user,
-        name=name,
-        phone=phone,
-        image_key=image_key,
-    )
+#     return _update_user_in_db(
+#         user=user,
+#         name=name,
+#         phone=phone,
+#         image_key=image_key,
+#     )
+
+
+# Sentinel value to distinguish between "field not provided" and "field set to None/null"
+UNSET = object()
+
+def update_user(
+    *,
+    user,
+    name=UNSET,
+    phone=UNSET,
+    profile_image=UNSET,
+):
+    # 1. Update text fields if provided
+    if name is not UNSET:
+        user.name = name
+
+    if phone is not UNSET:
+        user.phone = phone
+
+    # 2. Handle profile image logic outside atomic block to avoid blocking DB locks
+    if profile_image is not UNSET:
+        old_image_key = user.profile_imagekey
+
+        if profile_image is None:
+            # User explicitly sent null -> clear image
+            user.profile_imagekey = None
+            if old_image_key:
+                _delete_from_storj(image_key=old_image_key)
+        else:
+            # User uploaded a new file -> upload first, then update key
+            new_image_key = _upload_to_storj(folder="profiles", image=profile_image)
+            user.profile_imagekey = new_image_key
+
+            # Clean up old file from Storj after successful upload
+            if old_image_key:
+                _delete_from_storj(image_key=old_image_key)
+
+    # 3. Save database changes atomically
+    with transaction.atomic():
+        user.save()
+
+    return user
 
 
 @transaction.atomic
