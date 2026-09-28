@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Search, Plus, Filter, Calendar, Utensils, Plane, ShoppingCart, Info } from 'lucide-react'
+import { Search, Plus, Filter, Calendar, Utensils, Plane, ShoppingCart, Info, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +14,17 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { useUserExpenseQuery } from '@/features/expense/api/useExpenseQuery'
+import { useDeleteExpenseMutation } from '@/features/expense/api/useExpenseMutation'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export const Route = createFileRoute('/_authenticated/expenses')({
   component: RouteComponent,
@@ -47,10 +58,12 @@ function RouteComponent() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedExpense, setSelectedExpense] = useState<ApiExpense | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newAmount, setNewAmount] = useState('')
   
   const { data, isLoading } = useUserExpenseQuery()
+  const deleteExpenseMutation = useDeleteExpenseMutation()
   const expenses=data??[]
 
   // Extract expenses array safely from API response structure
@@ -77,6 +90,18 @@ function RouteComponent() {
   const handleRowClick = (expense: ApiExpense) => {
     setSelectedExpense(expense)
     setIsDetailOpen(true)
+  }
+
+  const handleDeleteExpense = () => {
+    if (!selectedExpense) return
+
+    deleteExpenseMutation.mutate(selectedExpense.id, {
+      onSuccess: () => {
+        setIsDeleteConfirmOpen(false)
+        setIsDetailOpen(false)
+        setSelectedExpense(null)
+      },
+    })
   }
 
   return (
@@ -271,12 +296,62 @@ function RouteComponent() {
             </div>
           )}
           <DialogFooter>
-            <Button onClick={() => setIsDetailOpen(false)}  className="w-full hover:bg-slate-800 text-white">
+            {deleteExpenseMutation.isError && (
+              <p role="alert" className="w-full text-sm text-red-600">
+                Unable to delete this expense. Please try again.
+              </p>
+            )}
+            <Button
+              variant="destructive"
+              onClick={() => {
+                deleteExpenseMutation.reset()
+                setIsDeleteConfirmOpen(true)
+              }}
+              disabled={deleteExpenseMutation.isPending}
+              className="text-white"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Expense
+            </Button>
+            <Button
+              onClick={() => setIsDetailOpen(false)}
+              disabled={deleteExpenseMutation.isPending}
+              className="w-full hover:bg-slate-800 text-white"
+            >
               Close
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={(open) => {
+          if (!deleteExpenseMutation.isPending) setIsDeleteConfirmOpen(open)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete “{selectedExpense?.title}” and update the group balances.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteExpenseMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteExpense}
+              disabled={deleteExpenseMutation.isPending}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {deleteExpenseMutation.isPending ? 'Deleting...' : 'Delete expense'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

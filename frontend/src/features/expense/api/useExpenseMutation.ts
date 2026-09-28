@@ -12,6 +12,11 @@ const createExpenseApi = async ({ groupId, data }: CreateExpenseParams) => {
   const response = await api.post(`/expenses/${groupId}/create/`, data)
   return response.data
 }
+ 
+const deleteExpenseApi = async (expenseId: string | number) => {
+  const response = await api.delete(`/expenses/${expenseId}/delete/`)
+  return response.data
+}
 
 export function useCreateExpenseMutation() {
   const queryClient = useQueryClient()
@@ -91,6 +96,24 @@ export function useCreateCategoryMutation() {
     mutationFn: createCategoryApi,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['categories'] })
+    },
+  })
+}
+
+
+export function useDeleteExpenseMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: deleteExpenseApi,
+    onSettled: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['expenses'] }),
+        queryClient.invalidateQueries({ queryKey: ['user-expenses'] }),
+        queryClient.invalidateQueries({ queryKey: ['group'] }),
+        queryClient.invalidateQueries({ queryKey: ['group-balance'] }),
+        queryClient.invalidateQueries({ queryKey: ['group-settlement'] }),
+      ])
     },
   })
 }

@@ -152,7 +152,6 @@ export function getGroupBalances(group?: {
     })
 }
 
-// Helper to normalize settlement suggestions from root payload or nested summary
 export function getSettlementSuggestions(group?: {
   settlement_suggestions?: Record<string, any>[]
   summary?: Record<string, any>
@@ -278,6 +277,7 @@ function GroupDetailComponent() {
       }
     )
   }
+
   const onConfirmDelete = () => {
     deleteGroup()
   }
@@ -299,8 +299,8 @@ function GroupDetailComponent() {
         name={group.name}
         description={group.description || 'No description provided'}
         groupImageUrl={group.group_image_url}
-        onEditGroup={()=>setIsEditGroupDialogOpen(true)}
-        onDeleteGroup={()=>setIsDeleteGroupDialogOpen(true)}
+        onEditGroup={() => setIsEditGroupDialogOpen(true)}
+        onDeleteGroup={() => setIsDeleteGroupDialogOpen(true)}
         onAddExpense={() => setIsExpenseDialogOpen(true)}
         onAddMember={() => setIsMemberDialogOpen(true)}
       />
@@ -327,6 +327,7 @@ function GroupDetailComponent() {
           <Wallet className="absolute right-4 bottom-4 w-28 h-28 text-orange-200/40 pointer-events-none" />
         </div>
       </div>
+
       <EditGroupDialog
         isOpen={isEditGroupDialogOpen}
         onOpenChange={setIsEditGroupDialogOpen}
@@ -379,6 +380,7 @@ function GroupDetailComponent() {
         }}
         isPending={isInvitePending}
       />
+
       <DeleteGroupDialog
         isOpen={isDeleteGroupDialogOpen}
         onOpenChange={setIsDeleteGroupDialogOpen}
@@ -392,26 +394,26 @@ function GroupDetailComponent() {
         <div className="lg:col-span-2 space-y-6">
           <Tabs defaultValue="expenses" className="w-full">
             <div className="flex items-end justify-between gap-3 border-b border-slate-200">
-            <TabsList className="bg-transparent p-0 h-auto gap-8 justify-start rounded-none">
-              <TabsTrigger
-                value="expenses"
-                className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-0 pb-3 font-semibold text-slate-500 data-[state=active]:text-blue-600 text-sm"
-              >
-                Expenses ({expenses.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="balances"
-                className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-0 pb-3 font-semibold text-slate-500 data-[state=active]:text-blue-600 text-sm"
-              >
-                Balances
-              </TabsTrigger>
-              <TabsTrigger
-                value="members"
-                className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-0 pb-3 font-semibold text-slate-500 data-[state=active]:text-blue-600 text-sm"
-              >
-                Members ({members.length})
-              </TabsTrigger>
-            </TabsList>
+              <TabsList className="bg-transparent p-0 h-auto gap-8 justify-start rounded-none">
+                <TabsTrigger
+                  value="expenses"
+                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-0 pb-3 font-semibold text-slate-500 data-[state=active]:text-blue-600 text-sm"
+                >
+                  Expenses ({expenses.length})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="balances"
+                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-0 pb-3 font-semibold text-slate-500 data-[state=active]:text-blue-600 text-sm"
+                >
+                  Balances
+                </TabsTrigger>
+                <TabsTrigger
+                  value="members"
+                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-0 pb-3 font-semibold text-slate-500 data-[state=active]:text-blue-600 text-sm"
+                >
+                  Members ({members.length})
+                </TabsTrigger>
+              </TabsList>
               <Button
                 type="button"
                 variant="outline"
@@ -436,7 +438,6 @@ function GroupDetailComponent() {
                   const IconComponent = getCategoryIcon(expense.category_name)
                   const parsedTotal = parseNum(expense.amount)
 
-                  // Calculate the current user's personal net share for this expense
                   const primaryPayer = expense.payers?.[0]?.user
                   const isPaidByCurrentUser = String(primaryPayer?.id) === String(currentUserId)
                   const payerName = isPaidByCurrentUser
@@ -456,9 +457,9 @@ function GroupDetailComponent() {
 
                   const formattedDate = expense.created_at
                     ? new Date(expense.created_at).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                    })
+                        month: 'short',
+                        day: 'numeric',
+                      })
                     : ''
 
                   return (
@@ -467,7 +468,6 @@ function GroupDetailComponent() {
                       className="rounded-2xl border-0 shadow-sm bg-white hover:shadow-md transition-shadow"
                     >
                       <CardContent className="p-4 flex items-center justify-between">
-                        {/* Left Section: Icon + Title/Metadata */}
                         <div className="flex items-center gap-4 min-w-0">
                           <div className="p-3 bg-slate-100 rounded-full text-slate-500 shrink-0">
                             <IconComponent className="w-6 h-6" />
@@ -476,13 +476,12 @@ function GroupDetailComponent() {
                             <h4 className="font-semibold text-slate-900 text-lg truncate">
                               {expense.title}
                             </h4>
-                            <p className=" text-slate-400  truncate">
+                            <p className="text-slate-400 truncate">
                               {formattedDate && `${formattedDate} · `}Paid by {payerName}
                             </p>
                           </div>
                         </div>
 
-                        {/* Right Section: Total & Personal Balance Split */}
                         <div className="flex items-center gap-4 shrink-0 pl-4">
                           <div className="text-right">
                             <span className="text-[10px] text-slate-400 font-medium block">
@@ -535,7 +534,6 @@ function GroupDetailComponent() {
 
             {/* BALANCES TAB */}
             <TabsContent value="balances" className="mt-6 space-y-6">
-              {/* SETTLEMENT SUGGESTIONS */}
               {settlementSuggestions.length > 0 && (
                 <Card className="rounded-2xl border-0 shadow-sm bg-white overflow-hidden">
                   <CardContent className="p-5 pb-2">
@@ -567,7 +565,6 @@ function GroupDetailComponent() {
                 </Card>
               )}
 
-              {/* INDIVIDUAL BALANCES */}
               {groupBalances.length === 0 ? (
                 <Card className="p-8 text-center text-slate-500 rounded-2xl border-0 shadow-sm bg-white">
                   No balance data yet.
@@ -605,12 +602,13 @@ function GroupDetailComponent() {
                         </div>
 
                         <span
-                          className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${b.statusType === 'credit'
+                          className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${
+                            b.statusType === 'credit'
                               ? 'bg-emerald-50 text-emerald-600'
                               : b.statusType === 'settled'
                                 ? 'bg-slate-100 text-slate-400'
                                 : 'bg-orange-50 text-orange-600'
-                            }`}
+                          }`}
                         >
                           {b.statusText}
                           {b.statusType !== 'settled' && ` $${b.amount.toFixed(2)}`}
@@ -683,10 +681,11 @@ function GroupDetailComponent() {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <span
-                            className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${member.role === 'admin'
+                            className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${
+                              member.role === 'admin'
                                 ? 'bg-amber-50 text-amber-700 border border-amber-200'
                                 : 'bg-slate-100 text-slate-600 border border-slate-200'
-                              }`}
+                            }`}
                           >
                             {member.role || 'member'}
                           </span>
@@ -761,16 +760,8 @@ function GroupDetailSkeleton() {
         <Skeleton className="h-11 w-36 rounded-full" />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Skeleton className="h-40 rounded-3xl" />
-        <Skeleton className="h-40 rounded-3xl" />
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-4">
-          <Skeleton className="h-10 w-full rounded-lg" />
-          <Skeleton className="h-20 w-full rounded-2xl" />
-          <Skeleton className="h-20 w-full rounded-2xl" />
-        </div>
-        <Skeleton className="h-64 rounded-3xl" />
+        <Skeleton className="h-40 rounded-2xl" />
+        <Skeleton className="h-40 rounded-2xl" />
       </div>
     </div>
   )
