@@ -10,10 +10,12 @@ from decouple import config
 def main():
     """Run administrative tasks."""
 
-    django_env = config("DJANGO_ENV", default="development")
-    settings_module = f"config.settings.{django_env}"
+    # An explicit DJANGO_SETTINGS_MODULE wins, so `manage.py migrate` on Render
+    # loads the same settings module gunicorn does. DJANGO_ENV is the fallback.
+    if "DJANGO_SETTINGS_MODULE" not in os.environ:
+        django_env = config("DJANGO_ENV", default="development")
+        os.environ["DJANGO_SETTINGS_MODULE"] = f"config.settings.{django_env}"
 
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", settings_module)
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
