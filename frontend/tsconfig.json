@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
     // Make sure baseUrfl is completely removed from this file
+    "noEmit":true,
+    "skipLibCheck":true,
+    "moduleResolution": "bundler",
     "jsx":"react-jsx",
     "types": ["vite/client"],
     
