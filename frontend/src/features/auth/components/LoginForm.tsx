@@ -35,12 +35,7 @@ export function LoginForm() {
 
   //form submission logic
   const onSubmit = async (data: LoginFormValues) => {
-    mutate(data, {
-      onSuccess: () => {
-        //navigate to sucessfule login
-        navigate({ to: "/" });
-      },
-    });
+    mutate(data)
   };
 
   return (

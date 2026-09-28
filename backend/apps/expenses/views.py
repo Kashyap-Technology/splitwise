@@ -1,8 +1,10 @@
+from django.db.models import Q
 from rest_framework import serializers, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.core.api.responses import api_success
+from apps.expenses.models import Expense
 from apps.expenses.selectors import get_category
 from apps.expenses.services import (
     create_category,
@@ -158,6 +160,67 @@ class ExpenseDeleteApi(APIView):
         return api_success(
             data=None,
             message="Expense Deleted Successfully.",
+            status_code=status.HTTP_200_OK,
+        )
+
+
+class GroupExpenseListApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    class OutputSerializer(serializers.Serializer):
+        id = serializers.IntegerField()
+        title = serializers.CharField()
+        split_type = serializers.CharField()
+        amount = serializers.DecimalField(max_digits=10, decimal_places=5)
+        category_id = serializers.IntegerField(source="category.id")
+        category_name = serializers.CharField(source="category.name")
+
+    def get(self, request, group_id):
+        group = get_group_for_member(group_id=group_id, user=request.user)
+        expenses = (
+            Expense.objects.filter(group=group)
+            .select_related("category")
+            .order_by("-created_at")
+        )
+
+        serializer = self.OutputSerializer(expenses, many=True)
+
+        return api_success(
+            data=serializer.data,
+            message="Group expenses fetched successfully.",
+            status_code=status.HTTP_200_OK,
+        )
+
+
+class UserExpenseListApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    class OutputSerializer(serializers.Serializer):
+        id = serializers.IntegerField()
+        title = serializers.CharField()
+        split_type = serializers.CharField()
+        amount = serializers.DecimalField(max_digits=10, decimal_places=5)
+        category_id = serializers.IntegerField(source="category.id")
+        category_name = serializers.CharField(source="category.name")
+        group_id = serializers.IntegerField(source="group.id")
+        group_name = serializers.CharField(source="group.name")
+
+    def get(self, request):
+        expenses = (
+            Expense.objects.filter(
+                Q(expense_payers__user=request.user)
+                | Q(expense_participants__user=request.user)
+            )
+            .select_related("category", "group")
+            .distinct()
+            .order_by("-created_at")
+        )
+
+        serializer = self.OutputSerializer(expenses, many=True)
+
+        return api_success(
+            data=serializer.data,
+            message="User expenses fetched successfully.",
             status_code=status.HTTP_200_OK,
         )
 
