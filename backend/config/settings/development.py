@@ -12,6 +12,16 @@ DATABASES = {
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
+INSTALLED_APPS = [*INSTALLED_APPS, "silk"]
+MIDDLEWARE = [
+    "silk.middleware.SilkyMiddleware",
+    *MIDDLEWARE,
+]
+
+# Local dev runs over plain http on a different port than the API, so cookies stay
+# SameSite=Lax and insecure. Production overrides both via COOKIE_SAMESITE/COOKIE_SECURE.
+SIMPLE_JWT = {**SIMPLE_JWT, "AUTH_COOKIE_SECURE": False, "AUTH_COOKIE_SAMESITE": "Lax"}
+
 
 LOGGING = {
     "version": 1,
