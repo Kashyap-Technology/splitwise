@@ -1,10 +1,11 @@
 from django.conf import settings
 from django.core.mail import send_mail
-
+from decouple import config
 
 def send_group_invitation_email(*, request, invitation):
     accept_url = (
-        f"http://localhost:8000/api/groups/{invitation.token}/invitation/accept/"
+        f"{config('BASE_URL').rstrip('/')}/groups/"
+        f"{invitation.token}/invitation/accept/"
     )
 
     send_mail(
