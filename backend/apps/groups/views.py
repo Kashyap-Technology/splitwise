@@ -140,14 +140,71 @@ class GroupInvitationAcceptApi(APIView):
     permission_classes = []
 
     def post(self, request, token):
+        from django.http import HttpResponse
+
         invitation = get_invitation_by_token(token=token)
 
-        accept_group_invitation(invitation=invitation, user=invitation.receiver)
+        try:
+            accept_group_invitation(invitation=invitation, user=invitation.receiver)
+        except Exception as e:
+            return HttpResponse(
+                f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Invitation Failed</title>
+                    <style>
+                        body {{ margin:0; padding:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#fef2f2,#fff); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }}
+                        .card {{ background:#fff; border-radius:16px; padding:48px 40px; max-width:400px; width:90%; text-align:center; box-shadow:0 4px 24px rgba(0,0,0,0.08); }}
+                        .icon {{ width:64px; height:64px; border-radius:50%; background:#fef2f2; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; font-size:28px; }}
+                        h1 {{ margin:0 0 8px; font-size:24px; color:#0f172a; }}
+                        p {{ margin:0 0 24px; color:#64748b; font-size:15px; line-height:1.5; }}
+                        .btn {{ display:inline-block; background:#2563eb; color:#fff; text-decoration:none; padding:12px 28px; border-radius:10px; font-size:15px; font-weight:600; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="card">
+                        <div class="icon">❌</div>
+                        <h1>Unable to Accept Invitation</h1>
+                        <p>{str(e)}</p>
+                        <a href="/" class="btn">Go to Splitsy</a>
+                    </div>
+                </body>
+                </html>
+                """,
+                status=400,
+            )
 
-        return api_success(
-            data=None,
-            message="Invitation accepted successfully.",
-            status_code=status.HTTP_200_OK,
+        return HttpResponse(
+            """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Invitation Accepted</title>
+                <style>
+                    body { margin:0; padding:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#eff6ff,#fff); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }
+                    .card { background:#fff; border-radius:16px; padding:48px 40px; max-width:400px; width:90%; text-align:center; box-shadow:0 4px 24px rgba(0,0,0,0.08); }
+                    .icon { width:64px; height:64px; border-radius:50%; background:#ecfdf5; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; font-size:28px; }
+                    h1 { margin:0 0 8px; font-size:24px; color:#0f172a; }
+                    p { margin:0 0 24px; color:#64748b; font-size:15px; line-height:1.5; }
+                    .btn { display:inline-block; background:#2563eb; color:#fff; text-decoration:none; padding:12px 28px; border-radius:10px; font-size:15px; font-weight:600; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="icon">🎉</div>
+                    <h1>Invitation Accepted!</h1>
+                    <p>You have successfully joined the group. You can now start splitting expenses with your friends.</p>
+                    <a href="/" class="btn">Go to Splitsy</a>
+                </div>
+            </body>
+            </html>
+            """,
+            status=200,
         )
 
 
