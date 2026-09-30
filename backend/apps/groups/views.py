@@ -137,12 +137,12 @@ class GroupInvitationCreateApi(APIView):
 
 
 class GroupInvitationAcceptApi(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
 
     def post(self, request, token):
         invitation = get_invitation_by_token(token=token)
 
-        accept_group_invitation(invitation=invitation, user=request.user)
+        accept_group_invitation(invitation=invitation, user=invitation.receiver)
 
         return api_success(
             data=None,
