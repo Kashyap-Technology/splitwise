@@ -20,8 +20,7 @@ export const expenseSchema = z.object({
     .array(
       z.object({
         user_id: z.number({ message: 'User ID must be a number' }),
-        amount_to_pay: z.coerce.string().optional(),
-        percentage: z.coerce.string().optional(),
+        value: z.coerce.number().optional(),
       }),
     )
     .min(1, 'Select at least one participant'),
@@ -31,29 +30,25 @@ export const expenseSchema = z.object({
     0,
   )
 
-  if (expense.split_type !== 'equal' && (
-    expense.payers.some((payer) => Number(payer.amount_paid || 0) <= 0) ||
-    Math.abs(paidTotal - expense.amount) > 0.001
-  )) {
-    context.addIssue({
-      code: 'custom',
-      path: ['payers'],
-      message: `Payer amounts must add up to $${expense.amount.toFixed(2)}`,
-    })
+  if (expense.split_type !== 'equal') {
+    if (
+      expense.payers.some((payer) => Number(payer.amount_paid || 0) <= 0) ||
+      Math.abs(paidTotal - expense.amount) > 0.001
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['payers'],
+        message: `Payer amounts must add up to $${expense.amount.toFixed(2)}`,
+      })
+    }
   }
 
   if (expense.split_type === 'exact') {
-    const participantTotal = expense.participants.reduce(
-      (total, participant) => total + Number(participant.amount_to_pay || 0),
+    const total = expense.participants.reduce(
+      (sum, p) => sum + Number(p.value || 0),
       0,
     )
-
-    if (
-      expense.participants.some(
-        (participant) => Number(participant.amount_to_pay || 0) <= 0,
-      ) ||
-      Math.abs(participantTotal - expense.amount) > 0.001
-    ) {
+    if (Math.abs(total - expense.amount) > 0.001) {
       context.addIssue({
         code: 'custom',
         path: ['participants'],
@@ -63,17 +58,11 @@ export const expenseSchema = z.object({
   }
 
   if (expense.split_type === 'percentage') {
-    const percentageTotal = expense.participants.reduce(
-      (total, participant) => total + Number(participant.percentage || 0),
+    const total = expense.participants.reduce(
+      (sum, p) => sum + Number(p.value || 0),
       0,
     )
-
-    if (
-      expense.participants.some(
-        (participant) => Number(participant.percentage || 0) <= 0,
-      ) ||
-      Math.abs(percentageTotal - 100) > 0.001
-    ) {
+    if (Math.abs(total - 100) > 0.001) {
       context.addIssue({
         code: 'custom',
         path: ['participants'],

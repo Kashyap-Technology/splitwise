@@ -255,11 +255,9 @@ function GroupDetailComponent() {
       participants: data.participants.map(
         (participant: CreateExpenseInput['participants'][number]) => ({
           user_id: Number(participant.user_id),
-          ...(data.split_type === 'exact'
-            ? { amount_to_pay: participant.amount_to_pay }
-            : data.split_type === 'percentage'
-              ? { percentage: participant.percentage }
-              : {}),
+          ...(data.split_type !== 'equal' && participant.value !== undefined
+            ? { value: Number(participant.value) }
+            : {}),
         }),
       ),
     }

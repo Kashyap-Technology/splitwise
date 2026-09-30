@@ -71,17 +71,14 @@ class CategoryCreateApi(APIView):
 class PayerSerializer(serializers.Serializer):
     user_id = serializers.IntegerField()
     amount_paid = serializers.DecimalField(
-        max_digits=10, decimal_places=5, required=False, allow_null=True
+        max_digits=10, decimal_places=5
     )
 
 
 class ParticipantSerializer(serializers.Serializer):
     user_id = serializers.IntegerField()
-    amount_to_pay = serializers.DecimalField(
-        max_digits=10, decimal_places=5, required=False
-    )
-    percentage = serializers.DecimalField(
-        max_digits=5, decimal_places=2, required=False
+    value = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False, allow_null=True
     )
 
 

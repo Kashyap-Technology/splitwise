@@ -9,7 +9,6 @@ export interface ApiExpensePayload {
   }>
   participants: Array<{
     user_id: number
-    amount_topay?:number
   }>
 }
 

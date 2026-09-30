@@ -56,9 +56,10 @@ export function ExpenseFormDialog({
     control,
     formState: { errors },
   } = form
-  const payers = useWatch({ control, name: 'payers' })
-  const equalPayerAmount = watchedAmount / Math.max(payers.length, 1)
-  const roundedEqualPayerAmount = equalPayerAmount.toFixed(2)
+  const participants = useWatch({ control, name: 'participants' })
+  const roundedParticipantAmount = (
+    watchedAmount / Math.max(participants.length, 1)
+  ).toFixed(2)
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -133,32 +134,80 @@ export function ExpenseFormDialog({
           {watchedSplitType === 'equal' && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-sm font-semibold text-slate-900">
-                Equal payment split
+                Participant shares (split equally)
               </p>
-              {payers.length === 0 ? (
+              {participants.length === 0 ? (
                 <p className="mt-1 text-xs text-slate-500">
-                  Select the payers below to see each person&apos;s share.
+                  Select participants below to see each person&apos;s share.
                 </p>
               ) : (
                 <div className="mt-3 space-y-2">
-                  {payers.map((payer, index) => {
+                  {participants.map((participant, index) => {
                     const member = members?.find(
-                      (candidate) => Number(candidate.id) === Number(payer.user_id),
+                      (candidate) => Number(candidate.id) === Number(participant.user_id),
                     )
                     const amount =
-                      index === payers.length - 1
-                        ? (watchedAmount - Number(roundedEqualPayerAmount) * index).toFixed(2)
-                        : roundedEqualPayerAmount
+                      index === participants.length - 1
+                        ? (watchedAmount - Number(roundedParticipantAmount) * index).toFixed(2)
+                        : roundedParticipantAmount
 
                     return (
                       <div
-                        key={payer.user_id}
+                        key={participant.user_id}
                         className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-slate-200"
                       >
                         <span className="font-medium text-slate-700">
-                          {member?.name || payer.user_id}
+                          {member?.name || participant.user_id}
                         </span>
                         <span className="font-semibold text-slate-900">${amount}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {watchedSplitType !== 'equal' && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-900">
+                {watchedSplitType === 'exact'
+                  ? 'Enter exact amount for each participant'
+                  : 'Enter percentage for each participant'}
+              </p>
+              {participants.length === 0 ? (
+                <p className="mt-1 text-xs text-slate-500">
+                  Select participants below to enter values.
+                </p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {participants.map((participant) => {
+                    const member = members?.find(
+                      (candidate) => Number(candidate.id) === Number(participant.user_id),
+                    )
+                    return (
+                      <div
+                        key={participant.user_id}
+                        className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-slate-200"
+                      >
+                        <span className="font-medium text-slate-700">
+                          {member?.name || participant.user_id}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0"
+                            {...register(`participants.${participants.indexOf(participant)}.value`, {
+                              valueAsNumber: true,
+                            })}
+                            className="h-8 w-24 text-right text-xs"
+                          />
+                          <span className="text-xs text-slate-400">
+                            {watchedSplitType === 'exact' ? '$' : '%'}
+                          </span>
+                        </div>
                       </div>
                     )
                   })}
@@ -215,7 +264,6 @@ export function ExpenseFormDialog({
             members={members}
             isLoadingMembers={isLoadingMembers}
             errors={errors}
-            watchedAmount={watchedAmount}
             splitType={watchedSplitType}
             mode="payers"
           />
@@ -227,7 +275,6 @@ export function ExpenseFormDialog({
             members={members}
             isLoadingMembers={isLoadingMembers}
             errors={errors}
-            watchedAmount={watchedAmount}
             splitType={watchedSplitType}
             mode="participants"
           />

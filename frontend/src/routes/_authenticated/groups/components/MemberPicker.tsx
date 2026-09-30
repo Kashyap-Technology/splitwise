@@ -23,7 +23,6 @@ export function MemberPicker({
   members,
   isLoadingMembers,
   errors,
-  watchedAmount,
   mode,
   splitType,
 }: {
@@ -33,7 +32,6 @@ export function MemberPicker({
   members?: GroupMember[]
   isLoadingMembers: boolean
   errors: FieldErrors<CreateExpenseInput>
-  watchedAmount?: number
   mode: 'payers' | 'participants'
   splitType?: SplitType
 }) {
@@ -45,12 +43,7 @@ export function MemberPicker({
         control={control}
         name={name}
         render={({ field }) => {
-          const selectedItems: Array<{
-            user_id: number
-            amount_paid?: string
-            amount_to_pay?: string
-            percentage?: string
-          }> =
+          const selectedItems: Array<{ user_id: number; amount_paid?: string; value?: number }> =
             field.value || []
           const selectedIds = selectedItems.map((item) => Number(item.user_id))
 
@@ -64,7 +57,7 @@ export function MemberPicker({
                 ? selectedItems.filter(
                     (item) => Number(item.user_id) !== memberIdNum
                   )
-                : [...selectedItems, { user_id: memberIdNum }]
+                : [...selectedItems, { user_id: memberIdNum, value: 0 }]
 
               field.onChange(updated)
               return
@@ -79,13 +72,13 @@ export function MemberPicker({
 
           const updateAllocation = (userId: number, value: string) => {
             field.onChange(selectedItems.map((item) =>
-              item.user_id === userId
-                ? mode === 'payers'
-                  ? { ...item, amount_paid: value }
-                  : splitType === 'percentage'
-                    ? { ...item, percentage: value }
-                    : { ...item, amount_to_pay: value }
-                : item
+              item.user_id === userId ? { ...item, amount_paid: value } : item
+            ))
+          }
+
+          const updateParticipantValue = (userId: number, value: number) => {
+            field.onChange(selectedItems.map((item) =>
+              item.user_id === userId ? { ...item, value } : item
             ))
           }
 
@@ -154,18 +147,15 @@ export function MemberPicker({
                     )
                   })}
                 </div>
-                {selectedItems.length > 0 && ((mode === 'payers' && splitType !== 'equal') || splitType === 'exact' || splitType === 'percentage') && (
+
+                {selectedItems.length > 0 && mode === 'payers' && splitType && splitType !== 'equal' && (
                   <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
                     <p className="text-xs font-medium text-slate-500">
-                      {mode === 'payers' ? 'Amount paid by each' : splitType === 'percentage' ? 'Percentage for each' : 'Amount owed by each'}
+                      Amount paid by each
                     </p>
                     {selectedItems.map((item) => {
                       const member = members?.find((candidate) => Number(candidate.id) === item.user_id)
-                      const value = mode === 'payers' ? item.amount_paid : splitType === 'percentage' ? item.percentage : item.amount_to_pay
-                      const calculatedAmount =
-                        mode === 'participants' && splitType === 'percentage'
-                          ? (Number(watchedAmount || 0) * Number(item.percentage || 0)) / 100
-                          : null
+                      const value = item.amount_paid
                       return (
                         <div key={item.user_id} className="flex items-center gap-2">
                           <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{member?.name || item.user_id}</span>
@@ -178,12 +168,35 @@ export function MemberPicker({
                             className="h-8 w-24 text-right text-xs"
                             placeholder="0.00"
                           />
-                          <span className="w-4 text-xs text-slate-400">{mode === 'participants' && splitType === 'percentage' ? '%' : '$'}</span>
-                          {calculatedAmount !== null && (
-                            <span className="w-20 text-right text-xs text-slate-500">
-                              ${calculatedAmount.toFixed(2)}
-                            </span>
-                          )}
+                          <span className="w-4 text-xs text-slate-400">$</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {selectedItems.length > 0 && mode === 'participants' && splitType && splitType !== 'equal' && (
+                  <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
+                    <p className="text-xs font-medium text-slate-500">
+                      {splitType === 'exact' ? 'Amount for each' : 'Percentage for each'}
+                    </p>
+                    {selectedItems.map((item) => {
+                      const member = members?.find((candidate) => Number(candidate.id) === item.user_id)
+                      return (
+                        <div key={item.user_id} className="flex items-center gap-2">
+                          <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{member?.name || item.user_id}</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.value ?? 0}
+                            onChange={(event) => updateParticipantValue(item.user_id, Number(event.target.value))}
+                            className="h-8 w-24 text-right text-xs"
+                            placeholder="0"
+                          />
+                          <span className="w-4 text-xs text-slate-400">
+                            {splitType === 'exact' ? '$' : '%'}
+                          </span>
                         </div>
                       )
                     })}
