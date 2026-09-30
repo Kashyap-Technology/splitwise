@@ -4,7 +4,7 @@ from decouple import config
 
 def send_group_invitation_email(*, request, invitation):
     accept_url = (
-        f"{config('BASE_URL').rstrip('/')}/groups/"
+        f"{config('BASE_URL').rstrip('/')}/api/groups/"
         f"{invitation.token}/invitation/accept/"
     )
 
