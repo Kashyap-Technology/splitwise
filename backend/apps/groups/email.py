@@ -1,12 +1,11 @@
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
-from decouple import config, Csv
+from decouple import config
 
 
 def send_group_invitation_email(*, request, invitation):
-    allowed_hosts = config("ALLOWED_HOSTS", cast=Csv())
-    frontend_url = allowed_hosts[0] if allowed_hosts else ""
-    accept_url = f"{frontend_url.rstrip('/')}/invite/{invitation.token}"
+    base_url = config("BASE_URL").rstrip("/")
+    accept_url = f"{base_url}/api/groups/{invitation.token}/invitation/accept/"
 
     subject = f"You've been invited to join {invitation.group.name} on Splitsy"
 
@@ -67,9 +66,11 @@ def send_group_invitation_email(*, request, invitation):
                                     </div>
                                 </div>
                                 <div style="text-align:center;margin-bottom:20px;">
-                                    <a href="{accept_url}" style="display:inline-block;background-color:#2563eb;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;letter-spacing:0.2px;">
-                                        Accept Invitation
-                                    </a>
+                                    <form action="{accept_url}" method="POST" style="margin:0;">
+                                        <button type="submit" style="display:inline-block;background-color:#2563eb;color:#ffffff;border:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;letter-spacing:0.2px;cursor:pointer;font-family:inherit;">
+                                            Accept Invitation
+                                        </button>
+                                    </form>
                                 </div>
                                 <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;line-height:1.5;">
                                     Or copy and paste this link:<br>
