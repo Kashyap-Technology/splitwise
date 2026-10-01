@@ -1,4 +1,5 @@
-import { Controller, useForm, useWatch, type UseFormReturn } from 'react-hook-form'
+import { useMemo } from 'react'
+import { Controller, useWatch, type UseFormReturn } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -24,20 +25,7 @@ import type { CreateExpenseInput } from '@/features/expense/schemas/expenseSchem
 import { MemberPicker } from './MemberPicker'
 import type { ExpenseCategory, GroupMember } from './types'
 
-export function ExpenseFormDialog({
-  isOpen,
-  onOpenChange,
-  form,
-  categories,
-  isLoadingCategories,
-  members,
-  isLoadingMembers,
-  watchedAmount,
-  watchedSplitType,
-  isPending,
-  onSubmit,
-  onCancel,
-}: {
+export function ExpenseFormDialog(props: {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
   form: UseFormReturn<CreateExpenseInput>
@@ -50,6 +38,73 @@ export function ExpenseFormDialog({
   isPending: boolean
   onSubmit: () => void
   onCancel: () => void
+  mode?: 'create' | 'edit'
+}) {
+  const { isOpen, onOpenChange, mode = 'create' } = props
+  const isEdit = mode === 'edit'
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md bg-white rounded-2xl">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
+          <DialogDescription>
+            {isEdit
+              ? 'Update this expense. Shares will be recalculated for everyone.'
+              : 'Record a new expense split across group members.'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={props.onSubmit} className="space-y-4 pt-2">
+          <ExpenseFormFields {...props} />
+          <DialogFooter className="pt-4 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={props.onCancel}
+              disabled={props.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={props.isPending}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {props.isPending
+                ? isEdit
+                  ? 'Saving...'
+                  : 'Adding...'
+                : isEdit
+                  ? 'Save Changes'
+                  : 'Add Expense'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// The form body without the dialog chrome, so it can be embedded in a larger
+// dialog that needs extra controls above it (for example picking a group before
+// splitting an expense on the global /expenses page).
+export function ExpenseFormFields({
+  form,
+  categories,
+  isLoadingCategories,
+  members,
+  isLoadingMembers,
+  watchedAmount,
+  watchedSplitType,
+}: {
+  form: UseFormReturn<CreateExpenseInput>
+  categories?: ExpenseCategory[]
+  isLoadingCategories: boolean
+  members?: GroupMember[]
+  isLoadingMembers: boolean
+  watchedAmount: number
+  watchedSplitType: CreateExpenseInput['split_type']
 }) {
   const {
     register,
@@ -57,21 +112,26 @@ export function ExpenseFormDialog({
     formState: { errors },
   } = form
   const participants = useWatch({ control, name: 'participants' })
-  const roundedParticipantAmount = (
-    watchedAmount / Math.max(participants.length, 1)
-  ).toFixed(2)
+
+  // Must mirror the backend's equal split: floor each share to whole cents, then
+  // hand the leftover cents out one each. Showing a rounded-up preview that the
+  // server does not store makes the dialog disagree with the saved expense.
+  const equalShares = useMemo(() => {
+    const count = participants.length
+    if (!count || !watchedAmount) return []
+
+    const totalCents = Math.round(watchedAmount * 100)
+    const base = Math.floor(totalCents / count)
+    const extra = totalCents - base * count
+
+    return Array.from(
+      { length: count },
+      (_, index) => (base + (index < extra ? 1 : 0)) / 100
+    )
+  }, [participants.length, watchedAmount])
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-white rounded-2xl">
-        <DialogHeader>
-          <DialogTitle>Add New Expense</DialogTitle>
-          <DialogDescription>
-            Record a new expense split across group members.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={onSubmit} className="space-y-4 pt-2">
+    <>
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
             <Input
@@ -146,10 +206,6 @@ export function ExpenseFormDialog({
                     const member = members?.find(
                       (candidate) => Number(candidate.id) === Number(participant.user_id),
                     )
-                    const amount =
-                      index === participants.length - 1
-                        ? (watchedAmount - Number(roundedParticipantAmount) * index).toFixed(2)
-                        : roundedParticipantAmount
 
                     return (
                       <div
@@ -159,7 +215,9 @@ export function ExpenseFormDialog({
                         <span className="font-medium text-slate-700">
                           {member?.name || participant.user_id}
                         </span>
-                        <span className="font-semibold text-slate-900">${amount}</span>
+                        <span className="font-semibold text-slate-900">
+                          ${equalShares[index]?.toFixed(2) ?? '0.00'}
+                        </span>
                       </div>
                     )
                   })}
@@ -172,46 +230,49 @@ export function ExpenseFormDialog({
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-sm font-semibold text-slate-900">
                 {watchedSplitType === 'exact'
-                  ? 'Enter exact amount for each participant'
-                  : 'Enter percentage for each participant'}
+                  ? 'Owed amount per participant'
+                  : 'Share percentage per participant'}
               </p>
               {participants.length === 0 ? (
                 <p className="mt-1 text-xs text-slate-500">
-                  Select participants below to enter values.
+                  Select participants below to set values.
                 </p>
               ) : (
-                <div className="mt-3 space-y-2">
-                  {participants.map((participant) => {
-                    const member = members?.find(
-                      (candidate) => Number(candidate.id) === Number(participant.user_id),
-                    )
-                    return (
-                      <div
-                        key={participant.user_id}
-                        className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-slate-200"
-                      >
-                        <span className="font-medium text-slate-700">
-                          {member?.name || participant.user_id}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0"
-                            {...register(`participants.${participants.indexOf(participant)}.value`, {
-                              valueAsNumber: true,
-                            })}
-                            className="h-8 w-24 text-right text-xs"
-                          />
-                          <span className="text-xs text-slate-400">
-                            {watchedSplitType === 'exact' ? '$' : '%'}
+                <>
+                  <div className="mt-3 space-y-2">
+                    {participants.map((participant) => {
+                      const member = members?.find(
+                        (candidate) =>
+                          Number(candidate.id) === Number(participant.user_id),
+                      )
+                      // Percentage values feed the backend's share_of_total,
+                      // so show the dollar figure each percentage works out to.
+                      const owed =
+                        watchedSplitType === 'exact'
+                          ? Number(participant.value ?? 0)
+                          : (watchedAmount * Number(participant.value ?? 0)) / 100
+
+                      return (
+                        <div
+                          key={participant.user_id}
+                          className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-slate-200"
+                        >
+                          <span className="font-medium text-slate-700">
+                            {member?.name || participant.user_id}
+                          </span>
+                          <span className="font-semibold text-slate-900">
+                            {Number.isFinite(owed) ? owed.toFixed(2) : '0.00'}
                           </span>
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                      )
+                    })}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {watchedSplitType === 'exact'
+                      ? 'Adjust the amounts owed in the "Split Between" picker below.'
+                      : 'Adjust the percentages in the "Split Between" picker below.'}
+                  </p>
+                </>
               )}
             </div>
           )}
@@ -265,6 +326,7 @@ export function ExpenseFormDialog({
             isLoadingMembers={isLoadingMembers}
             errors={errors}
             splitType={watchedSplitType}
+            amount={watchedAmount}
             mode="payers"
           />
 
@@ -276,23 +338,9 @@ export function ExpenseFormDialog({
             isLoadingMembers={isLoadingMembers}
             errors={errors}
             splitType={watchedSplitType}
+            amount={watchedAmount}
             mode="participants"
           />
-
-          <DialogFooter className="pt-4 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isPending}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isPending ? 'Adding...' : 'Add Expense'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    </>
   )
 }

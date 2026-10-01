@@ -25,6 +25,7 @@ export function MemberPicker({
   errors,
   mode,
   splitType,
+  amount,
 }: {
   label: string
   name: 'payers' | 'participants'
@@ -34,6 +35,7 @@ export function MemberPicker({
   errors: FieldErrors<CreateExpenseInput>
   mode: 'payers' | 'participants'
   splitType?: SplitType
+  amount: number
 }) {
   return (
     <div className="space-y-2">
@@ -43,31 +45,56 @@ export function MemberPicker({
         control={control}
         name={name}
         render={({ field }) => {
-          const selectedItems: Array<{ user_id: number; amount_paid?: string; value?: number }> =
-            field.value || []
+          const selectedItems: Array<{
+            user_id: number
+            amount_paid?: string
+            value?: number | null
+          }> = field.value || []
           const selectedIds = selectedItems.map((item) => Number(item.user_id))
+
+          // Mirrors the backend: floor each share to whole cents, then hand the leftover
+          // cents out one each. This guarantees the parts sum back to `total`
+          // exactly and never produce a negative share.
+          const splitEvenly = (total: number, count: number) => {
+            if (count <= 0) return []
+
+            const totalCents = Math.round(total * 100)
+            const base = Math.floor(totalCents / count)
+            const extra = totalCents - base * count
+
+            return Array.from(
+              { length: count },
+              (_, i) => (base + (i < extra ? 1 : 0)) / 100
+            )
+          }
 
           const toggleItem = (memberIdNum: number) => {
             const exists = selectedItems.some(
               (item) => Number(item.user_id) === memberIdNum
             )
 
-            if (mode === 'participants') {
-              const updated = exists
-                ? selectedItems.filter(
-                    (item) => Number(item.user_id) !== memberIdNum
-                  )
-                : [...selectedItems, { user_id: memberIdNum, value: 0 }]
-
-              field.onChange(updated)
+            if (exists) {
+              field.onChange(
+                selectedItems.filter((item) => Number(item.user_id) !== memberIdNum)
+              )
               return
             }
 
-            let updatedPayers = exists
-              ? selectedItems.filter((item) => Number(item.user_id) !== memberIdNum)
-              : [...selectedItems, { user_id: memberIdNum, amount_paid: '' }]
+            const next = [...selectedItems, { user_id: memberIdNum }]
+            // Payers always divide the total in dollars. A participant's `value`
+            // is dollars for exact and percent for percentage, and is unused by
+            // the backend for equal splits.
+            const total =
+              mode === 'participants' && splitType === 'percentage' ? 100 : amount
+            const shares = splitEvenly(total, next.length)
 
-            field.onChange(updatedPayers)
+            field.onChange(
+              next.map((item, i) =>
+                mode === 'payers'
+                  ? { ...item, amount_paid: shares[i].toFixed(2) }
+                  : { ...item, value: shares[i] }
+              )
+            )
           }
 
           const updateAllocation = (userId: number, value: string) => {
@@ -76,10 +103,14 @@ export function MemberPicker({
             ))
           }
 
-          const updateParticipantValue = (userId: number, value: number) => {
-            field.onChange(selectedItems.map((item) =>
-              item.user_id === userId ? { ...item, value } : item
-            ))
+          const updateParticipantValue = (userId: number, value: string) => {
+            field.onChange(
+              selectedItems.map((item) =>
+                item.user_id === userId
+                  ? { ...item, value: value === '' ? null : Number(value) }
+                  : item
+              )
+            )
           }
 
           return (
@@ -131,6 +162,11 @@ export function MemberPicker({
                     const isChecked = selectedIds.includes(memberIdNum)
 
                     return (
+                      // Clicking the checkbox used to fire both onCheckedChange and the
+                      // parent row's onClick, so toggleItem ran twice and the
+                      // selection never changed. The checkbox keeps its own
+                      // handler for keyboard accessibility but stops the click
+                      // from bubbling into the row.
                       <div
                         key={member.id}
                         onClick={() => toggleItem(memberIdNum)}
@@ -139,6 +175,7 @@ export function MemberPicker({
                         <Checkbox
                           checked={isChecked}
                           onCheckedChange={() => toggleItem(memberIdNum)}
+                          onClick={(event) => event.stopPropagation()}
                         />
                         <span className="font-medium text-slate-700">
                           {member.name}
@@ -148,10 +185,13 @@ export function MemberPicker({
                   })}
                 </div>
 
-                {selectedItems.length > 0 && mode === 'payers' && splitType && splitType !== 'equal' && (
+                {selectedItems.length > 0 && mode === 'payers' && (
                   <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
                     <p className="text-xs font-medium text-slate-500">
                       Amount paid by each
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      Anyone who paid $0 will be counted as a participant only.
                     </p>
                     {selectedItems.map((item) => {
                       const member = members?.find((candidate) => Number(candidate.id) === item.user_id)
@@ -182,21 +222,35 @@ export function MemberPicker({
                     </p>
                     {selectedItems.map((item) => {
                       const member = members?.find((candidate) => Number(candidate.id) === item.user_id)
+                      // Mirrors the backend's percentage rounding so the picker
+                      // shows the same figure that will be stored.
+                      const owed =
+                        splitType === 'percentage'
+                          ? (amount * Number(item.value ?? 0)) / 100
+                          : Number(item.value ?? 0)
+
                       return (
                         <div key={item.user_id} className="flex items-center gap-2">
                           <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{member?.name || item.user_id}</span>
                           <Input
                             type="number"
                             min="0"
-                            step="0.01"
-                            value={item.value ?? 0}
-                            onChange={(event) => updateParticipantValue(item.user_id, Number(event.target.value))}
+                            step={splitType === 'percentage' ? '0.01' : '0.01'}
+                            value={item.value ?? ''}
+                            onChange={(event) =>
+                              updateParticipantValue(item.user_id, event.target.value)
+                            }
                             className="h-8 w-24 text-right text-xs"
                             placeholder="0"
                           />
-                          <span className="w-4 text-xs text-slate-400">
+                          <span className="w-8 text-xs text-slate-400">
                             {splitType === 'exact' ? '$' : '%'}
                           </span>
+                          {splitType === 'percentage' && (
+                            <span className="w-16 text-right text-[10px] text-slate-400">
+                              ${Number.isFinite(owed) ? owed.toFixed(2) : '0.00'}
+                            </span>
+                          )}
                         </div>
                       )
                     })}

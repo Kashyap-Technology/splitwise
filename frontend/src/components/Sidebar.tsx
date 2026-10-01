@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import {useLogoutMutation} from '@/features/auth/api/useLogoutMutation'
+import { useGroupQuery, useUserSettlementQuery } from "@/features/group/api/useGroupsQuery";
 
 interface NavItem {
   label: string;
@@ -39,14 +40,31 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
-  { label: "Groups", to: "/groups", icon: Users, badge: 3 },
+  { label: "Groups", to: "/groups", icon: Users },
   { label: "Expenses", to: "/expenses", icon: Receipt },
-  { label: "Settlement", to: "/settlement", icon: UserCheck, badge: "2 Owed" },
+  { label: "Settlement", to: "/settlement", icon: UserCheck },
   { label: "Categories", to: "/categories", icon: Grid },
 ];
 
+// Badges are resolved per-render from live data rather than hardcoded counts,
+// which previously showed "3" groups and "2 Owed" regardless of the truth.
+function useNavBadges() {
+  const { data: groups } = useGroupQuery();
+  const { data: settlements } = useUserSettlementQuery();
+
+  const groupCount = groups?.length ?? 0;
+  const owedCount = settlements?.summary?.current_settlement_count ?? 0;
+
+  return {
+    "/groups": groupCount > 0 ? groupCount : undefined,
+    "/settlement": owedCount > 0 ? `${owedCount} owed` : undefined,
+  } as Record<string, string | number | undefined>;
+}
+
+// Points at /me, which is the real profile & billing screen. There is no
+// /settings route, so the old link 404'd.
 const secondaryNavItems: NavItem[] = [
-  { label: "Settings", to: "/settings", icon: Settings },
+  { label: "Settings", to: "/me", icon: Settings },
 ];
 
 export function Sidebar({ className = "" }: { className?: string }) {
@@ -55,6 +73,7 @@ export function Sidebar({ className = "" }: { className?: string }) {
   const { user,isLoading } = useAuth();
 
   const {mutate:logout,isPending}=useLogoutMutation()
+  const badges = useNavBadges()
 
   const getInitials = (name?: string) => {
     if (!name) return "U";
@@ -119,6 +138,7 @@ export function Sidebar({ className = "" }: { className?: string }) {
             {mainNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname.startsWith(item.to);
+              const badge = badges[item.to] ?? item.badge;
 
               return (
                 <Link key={item.to} to={item.to} className="block">
@@ -134,7 +154,7 @@ export function Sidebar({ className = "" }: { className?: string }) {
                       <Icon className={`w-4 h-4 ${isActive ? "text-blue-600" : "text-slate-500"}`} />
                       <span>{item.label}</span>
                     </div>
-                    {item.badge !== undefined && (
+                    {badge !== undefined && (
                       <Badge
                         variant="secondary"
                         className={`text-[10px] px-2 py-0.5 rounded-full border-0 ${
@@ -143,7 +163,7 @@ export function Sidebar({ className = "" }: { className?: string }) {
                             : "bg-slate-100 text-slate-600"
                         }`}
                       >
-                        {item.badge}
+                        {badge}
                       </Badge>
                     )}
                   </Button>

@@ -75,34 +75,13 @@ class GroupCreateApi(APIView):
         description = serializers.CharField(required=False, allow_blank=True)
         group_image = serializers.ImageField(required=False, allow_null=True)
 
-        # Unique group name, excluding the group being edited. Without the
-        # exclusion a group collides with itself, so saving without renaming --
-        # for example to edit only the description -- was rejected outright.
+        # unique group name
         def validate_name(self, value):
-            clash = (
-                Group.objects.filter(name__iexact=value)
-                .exclude(pk=self.context["group_id"])
-                .exists()
-            )
-            if clash:
+            if Group.objects.filter(name__iexact=value).exists():
                 raise serializers.ValidationError(
                     "A group with this name already exists."
                 )
             return value
-
-        def to_internal_value(self, data):
-            values = super().to_internal_value(data)
-
-            # DRF treats an empty multipart field as a missing field and drops
-            # it, but the client sends `group_image=''` to mean "remove the
-            # current image". The service distinguishes an absent key (leave the
-            # image alone) from an explicit null (remove it), so the empty
-            # string has to survive as a real null.
-            raw_image = data.get("group_image") if hasattr(data, "get") else None
-            if raw_image == "" and "group_image" not in values:
-                values["group_image"] = None
-
-            return values
 
     class OutputSerializer(serializers.Serializer):
         id = serializers.IntegerField()
