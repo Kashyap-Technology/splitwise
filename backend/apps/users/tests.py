@@ -45,7 +45,8 @@ class UserSearchTests(TestCase):
             "https://gateway.storjshare.io/splitwise/profiles/test.png?X-Amz-Algorithm=AWS4-HMAC-SHA256",
         )
         mock_client.return_value.generate_presigned_url.assert_called_once_with(
-            "get_object",
+            ClientMethod="get_object",
             Params={"Bucket": "splitwise", "Key": "profiles/test.png"},
             ExpiresIn=3600,
+            HttpMethod="GET",
         )

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -37,7 +39,9 @@ class Expense(AuditModel):
     )
 
     amount = models.DecimalField(
-        max_digits=10, decimal_places=5, validators=[MinValueValidator(1.0)]
+        max_digits=10,
+        decimal_places=5,
+        validators=[MinValueValidator(Decimal("0.00001"))],
     )
 
     split_type = models.CharField(
@@ -61,7 +65,9 @@ class ExpensePayer(AuditModel):
     )
 
     amount_paid = models.DecimalField(
-        max_digits=10, decimal_places=5, validators=[MinValueValidator(1.0)]
+        max_digits=10,
+        decimal_places=5,
+        validators=[MinValueValidator(Decimal("0.00001"))],
     )
 
     class Meta:

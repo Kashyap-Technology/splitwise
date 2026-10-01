@@ -18,14 +18,17 @@ export function GroupHeader({
   onAddExpense,
   onDeleteGroup,
   onAddMember,
+  canManage = false,
 }: {
   name: string
   description: string
   groupImageUrl?: string | null
   onEditGroup: () => void
-  onDeleteGroup:()=>void
+  onDeleteGroup: () => void
   onAddExpense: () => void
   onAddMember: () => void
+  /** Admin-only actions (edit, delete) are hidden for plain members. */
+  canManage?: boolean
 }) {
   return (
     <div className="flex flex-col gap-4 pb-6 border-b border-slate-100 sm:flex-row sm:items-center sm:justify-between">
@@ -56,14 +59,18 @@ export function GroupHeader({
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
-        <Button
-          variant="link"
-          onClick={onEditGroup}
-          className="rounded-full px-4 h-10 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 font-medium shadow-sm transition-colors cursor-pointer"
-        >
-          <SquarePen className="w-4 h-4 text-slate-500" />
-          <span>Edit Group</span>
-        </Button>
+        {/* Edit and delete are admin-only server-side. Showing them to plain
+            members offered actions that could only ever fail with a 403. */}
+        {canManage && (
+          <Button
+            variant="link"
+            onClick={onEditGroup}
+            className="rounded-full px-4 h-10 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 font-medium shadow-sm transition-colors cursor-pointer"
+          >
+            <SquarePen className="w-4 h-4 text-slate-500" />
+            <span>Edit Group</span>
+          </Button>
+        )}
         <Button
           variant="outline"
           onClick={onAddMember}
@@ -80,14 +87,15 @@ export function GroupHeader({
           <Plus className="w-4 h-4" />
           <span>Add Expense</span>
         </Button>
-<Button
-          onClick={onDeleteGroup}
-          className="rounded-full px-5 h-10 bg-red-600 hover:bg-red-700 text-white font-medium shadow-sm transition-colors cursor-pointer"
-        >
-          {/* <Plus className="w-4 h-4" /> */}
-<Trash className='w-4 h-4'/>
-          <span className='font-bold'>Delete Group</span>
-        </Button>
+{canManage && (
+          <Button
+            onClick={onDeleteGroup}
+            className="rounded-full px-5 h-10 bg-red-600 hover:bg-red-700 text-white font-medium shadow-sm transition-colors cursor-pointer"
+          >
+            <Trash className="w-4 h-4" />
+            <span className="font-bold">Delete Group</span>
+          </Button>
+        )}
       </div>
     </div>
   )

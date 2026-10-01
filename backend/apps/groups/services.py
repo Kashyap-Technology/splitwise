@@ -175,7 +175,16 @@ def delete_group(*, group_id, user):
 def update_group(*, group_id, user, data):
     group = get_object_or_404(Group, pk=group_id)
 
-    if group.created_by != user:
+    # Mirrors the expense permission model: group admins may edit, plain
+    # members may not. Previously this compared against `group.created_by`,
+    # which rejected every admin who was not the group's original creator even
+    # though the UI offers them the edit button.
+    membership = GroupMembership.objects.filter(group=group, user=user).first()
+
+    if membership is None:
+        raise NotAGroupMemberError()
+
+    if membership.role != GroupMembership.Role.ADMIN:
         raise PermissionDeniedError("You don't have permission to update this Group.")
 
     if "group_image" not in data:
@@ -185,6 +194,14 @@ def update_group(*, group_id, user, data):
             data=data,
             image_key=group.group_imagekey,
         )
+
+    # An explicit null means "remove the image". Sending the key as absent means
+    # "leave the current image alone", so the two cases have to be told apart.
+    if data["group_image"] is None:
+        if group.group_imagekey:
+            _delete_from_storj(image_key=group.group_imagekey)
+
+        return _update_group_in_db(group=group, data=data, user=user, image_key=None)
 
     if group.group_imagekey:
         _delete_from_storj(image_key=group.group_imagekey)

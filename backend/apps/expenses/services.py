@@ -1,7 +1,6 @@
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_FLOOR, ROUND_HALF_UP, Decimal
 
 from django.db import transaction
-from django.shortcuts import get_object_or_404
 from rest_framework.validators import ValidationError
 
 from apps.core.models import AuditLog
@@ -9,13 +8,20 @@ from apps.core.services import create_audit_log
 from apps.expenses.exceptions import (
     CategoryAlreadyExistsError,
     CategoryDoesNotExistsError,
+    DuplicateUserInSplitError,
     ExpenseDoesNotExistsError,
     InvalidExactSplitError,
     InvalidPaidAmount,
+    InvalidPercentageSplitError,
+    InvalidSplitValueError,
     NotGroupMemberError,
     UnsupportedSplitTypeError,
 )
 from apps.expenses.models import Category, Expense, ExpenseParticipant, ExpensePayer
+from apps.groups.exception import PermissionDeniedError
+from apps.groups.models import GroupMembership
+
+CENT = Decimal("0.01")
 
 
 def _get_valid_category(*, category_id):
@@ -36,7 +42,31 @@ def _validate_group_members(*, group, user_ids):
         raise NotGroupMemberError()
 
 
+def _reject_duplicate_users(entries, *, label):
+    user_ids = [entry["user_id"] for entry in entries]
+
+    if len(user_ids) != len(set(user_ids)):
+        raise DuplicateUserInSplitError(label)
+
+
+def _coerce_value(raw):
+    """Coerce a participant `value` to Decimal, rejecting None/NaN.
+
+    `value` is optional on the wire, so it can arrive missing or null. Decimal
+    raises ConversionSyntax on None, which would surface as a 500.
+    """
+    if raw is None or raw == "":
+        return Decimal("0")
+
+    try:
+        return Decimal(str(raw))
+    except (ArithmeticError, ValueError, TypeError):
+        raise InvalidSplitValueError()
+
+
 def _calculate_payer_amount(*, amount, payers):
+    _reject_duplicate_users(payers, label="payers")
+
     total_paid_amount = sum(
         (Decimal(str(payer["amount_paid"])) for payer in payers), Decimal("0")
     )
@@ -51,49 +81,69 @@ def _calculate_payer_amount(*, amount, payers):
 
 
 def _calculate_equal_split(*, amount, participants):
+    _reject_duplicate_users(participants, label="participants")
+
     user_ids = [p["user_id"] for p in participants]
     no_of_participants = len(user_ids)
 
     amount = Decimal(str(amount))
-    split_amount = (amount / no_of_participants).quantize(
-        Decimal("0.01"), rounding=ROUND_HALF_UP
-    )
 
-    amounts = {id: split_amount for id in user_ids}
+    # Floor the per-person share to whole cents, then hand the leftover cents out
+    # one each. Rounding the share up instead (and dumping the whole remainder on
+    # the last person) makes that remainder negative whenever amount/n does not
+    # divide cleanly: 0.07 across 12 people gave the last person -0.04, which the
+    # model's MinValueValidator(0) on amount_to_pay then rejects on save.
+    total_cents = int((amount * 100).to_integral_value(rounding=ROUND_HALF_UP))
+    base_cents, extra_cents = divmod(total_cents, no_of_participants)
 
-    remainder = amount - (split_amount * no_of_participants)
-    amounts[user_ids[-1]] += remainder
-
-    return amounts
+    return {
+        user_id: Decimal(base_cents + (1 if index < extra_cents else 0)) / 100
+        for index, user_id in enumerate(user_ids)
+    }
 
 
 def _calculate_exact_split(*, amount, participants):
+    _reject_duplicate_users(participants, label="participants")
+
     amount = Decimal(str(amount))
-    total = sum(Decimal(str(p.get("value", 0))) for p in participants)
+    total = sum(_coerce_value(p.get("value")) for p in participants)
 
     if total != amount:
         raise InvalidExactSplitError()
 
-    return {p["user_id"]: Decimal(str(p.get("value", 0))) for p in participants}
+    return {p["user_id"]: _coerce_value(p.get("value")) for p in participants}
 
 
 def _calculate_percentage_split(*, amount, participants):
+    _reject_duplicate_users(participants, label="participants")
+
     amount = Decimal(str(amount))
-    total_percentage = sum(Decimal(str(p.get("value", 0))) for p in participants)
+    values = {p["user_id"]: _coerce_value(p.get("value")) for p in participants}
+    total_percentage = sum(values.values(), Decimal("0"))
 
     if total_percentage != Decimal("100"):
-        raise InvalidExactSplitError("Percentages must add up to 100%.")
+        raise InvalidPercentageSplitError()
+
+    total_cents = int((amount * 100).to_integral_value(rounding=ROUND_HALF_UP))
 
     amounts = {}
     for p in participants:
-        share = (amount * Decimal(str(p["value"]))) / Decimal("100")
-        amounts[p["user_id"]] = share.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        # Floor rather than round up, for the same reason as equal splits: an
+        # individually rounded-up share can push the total past the expense
+        # amount and leave the remainder negative.
+        share_cents = (total_cents * values[p["user_id"]] / Decimal("100")).to_integral_value(
+            rounding=ROUND_FLOOR
+        )
+        amounts[p["user_id"]] = share_cents / 100
 
-    # balance rounding remainder
-    remainder = amount - sum(amounts.values())
-    if remainder and amounts:
-        last_id = participants[-1]["user_id"]
-        amounts[last_id] += remainder
+    # Hand out the leftover cents one each, largest percentage first, so the
+    # rounding lands on the biggest shares and no share can go negative.
+    leftover = total_cents - sum(int(v * 100) for v in amounts.values())
+    if leftover > 0:
+        for participant in sorted(
+            participants, key=lambda p: values[p["user_id"]], reverse=True
+        )[:leftover]:
+            amounts[participant["user_id"]] += CENT
 
     return amounts
 
@@ -163,6 +213,8 @@ def create_expense(
         category=category,
         amount=amount,
         split_type=split_type,
+        created_by=user,
+        updated_by=user,
     )
     expense.full_clean()
     expense.save()
@@ -203,15 +255,39 @@ def create_expense(
     return expense
 
 
-def delete_expense(*, request, expense_id):
-    try:
-        expense = Expense.objects.get(id=expense_id)
-    except Exception as e:
-        raise ExpenseDoesNotExistsError()
-    group = expense.group
+def _get_manageable_expense(*, expense_id, user):
+    """Fetch an expense the user is allowed to edit or delete.
 
-    if group.created_by != request.user:
-        raise ValidationError("Only the group admin can delete the group.")
+    Permissions mirror the rest of the group endpoints: you must be a member of
+    the owning group, and editing is limited to group admins. Previously this
+    compared against `group.created_by`, which excluded every admin who was not
+    the group's original creator.
+    """
+    expense = (
+        Expense.objects.filter(id=expense_id)
+        .select_related("group")
+        .first()
+    )
+
+    if expense is None:
+        raise ExpenseDoesNotExistsError()
+
+    membership = GroupMembership.objects.filter(
+        group=expense.group, user=user
+    ).first()
+
+    if membership is None:
+        raise NotGroupMemberError()
+
+    if membership.role != GroupMembership.Role.ADMIN:
+        raise PermissionDeniedError()
+
+    return expense
+
+
+@transaction.atomic
+def delete_expense(*, request, expense_id):
+    expense = _get_manageable_expense(expense_id=expense_id, user=request.user)
 
     create_audit_log(
         user=request.user,
@@ -235,15 +311,8 @@ def update_expense(
     payers: list[dict],
     participants: list[dict],
 ):
-    try:
-        expense = Expense.objects.get(id=expense_id)
-    except Expense.DoesNotExist:
-        raise ValidationError("Expense not found.")
-
+    expense = _get_manageable_expense(expense_id=expense_id, user=request.user)
     group = expense.group
-
-    if group.created_by != request.user:
-        raise ValidationError("only the group admin can update the group")
 
     # get and validate category
     category = _get_valid_category(category_id=category_id)
@@ -258,14 +327,11 @@ def update_expense(
         amount=amount, participants=participants, split_type=split_type
     )
 
-    expense = get_object_or_404(Expense, pk=expense_id)
-
     expense.title = title
     expense.category = category
     expense.amount = amount
     expense.split_type = split_type
-    expense.payers = payers
-    expense.participants = participants
+    expense.updated_by = request.user
 
     expense.full_clean()
     expense.save()

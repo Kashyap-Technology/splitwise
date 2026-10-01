@@ -11,8 +11,8 @@ from apps.core.services import get_storj_public_url
 from apps.expenses.models import Expense
 from apps.groups.models import Group, GroupMembership
 from apps.groups.selectors import (
-    get_group_by_id,
     get_group_balance,
+    get_group_by_id,
     get_group_for_member,
     get_group_member_list,
     get_invitation_by_token,
@@ -30,7 +30,6 @@ from apps.groups.services import (
     remove_user_from_group,
     update_group,
 )
-from apps.settlements.models import Settlement
 
 
 class UserSerializer(serializers.Serializer):
@@ -76,13 +75,34 @@ class GroupCreateApi(APIView):
         description = serializers.CharField(required=False, allow_blank=True)
         group_image = serializers.ImageField(required=False, allow_null=True)
 
-        # unique group name
+        # Unique group name, excluding the group being edited. Without the
+        # exclusion a group collides with itself, so saving without renaming --
+        # for example to edit only the description -- was rejected outright.
         def validate_name(self, value):
-            if Group.objects.filter(name__iexact=value).exists():
+            clash = (
+                Group.objects.filter(name__iexact=value)
+                .exclude(pk=self.context["group_id"])
+                .exists()
+            )
+            if clash:
                 raise serializers.ValidationError(
                     "A group with this name already exists."
                 )
             return value
+
+        def to_internal_value(self, data):
+            values = super().to_internal_value(data)
+
+            # DRF treats an empty multipart field as a missing field and drops
+            # it, but the client sends `group_image=''` to mean "remove the
+            # current image". The service distinguishes an absent key (leave the
+            # image alone) from an explicit null (remove it), so the empty
+            # string has to survive as a real null.
+            raw_image = data.get("group_image") if hasattr(data, "get") else None
+            if raw_image == "" and "group_image" not in values:
+                values["group_image"] = None
+
+            return values
 
     class OutputSerializer(serializers.Serializer):
         id = serializers.IntegerField()
@@ -522,13 +542,34 @@ class GroupUpdateApi(APIView):
         description = serializers.CharField(required=False, allow_blank=True)
         group_image = serializers.ImageField(required=False, allow_null=True)
 
-        # unique group name
+        # Unique group name, excluding the group being edited. Without the
+        # exclusion a group collides with itself, so saving without renaming --
+        # for example to edit only the description -- was rejected outright.
         def validate_name(self, value):
-            if Group.objects.filter(name__iexact=value).exists():
+            clash = (
+                Group.objects.filter(name__iexact=value)
+                .exclude(pk=self.context["group_id"])
+                .exists()
+            )
+            if clash:
                 raise serializers.ValidationError(
                     "A group with this name already exists."
                 )
             return value
+
+        def to_internal_value(self, data):
+            values = super().to_internal_value(data)
+
+            # DRF treats an empty multipart field as a missing field and drops
+            # it, but the client sends `group_image=''` to mean "remove the
+            # current image". The service distinguishes an absent key (leave the
+            # image alone) from an explicit null (remove it), so the empty
+            # string has to survive as a real null.
+            raw_image = data.get("group_image") if hasattr(data, "get") else None
+            if raw_image == "" and "group_image" not in values:
+                values["group_image"] = None
+
+            return values
 
     class OutputSerializer(serializers.Serializer):
         id = serializers.IntegerField()
@@ -541,7 +582,9 @@ class GroupUpdateApi(APIView):
             return get_storj_public_url(image_key=obj.group_imagekey)
 
     def patch(self, request, group_id):
-        serializer = self.InputSerializer(data=request.data, partial=True)
+        serializer = self.InputSerializer(
+            data=request.data, partial=True, context={"group_id": group_id}
+        )
         serializer.is_valid(raise_exception=True)
 
         updated_group = update_group(
