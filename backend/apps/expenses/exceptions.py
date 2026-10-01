@@ -35,6 +35,24 @@ class InvalidExactSplitError(ApplicationError):
     default_detail = "Split amount doesn't match total expense."
 
 
+class InvalidPercentageSplitError(ApplicationError):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_code = "invalid_percentage_split"
+    default_detail = "Percentages must add up to 100%."
+
+
+class InvalidSplitValueError(ApplicationError):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_code = "invalid_split_value"
+    default_detail = "Split values must be valid numbers."
+
+
+class DuplicateUserInSplitError(ApplicationError):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_code = "duplicate_user_in_split"
+    default_detail = "The same user cannot appear twice in a split."
+
+
 class UnsupportedSplitTypeError(ApplicationError):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "The selected split type is not supported"

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db.models import Q
 from rest_framework import serializers, status
 from rest_framework.permissions import IsAuthenticated
@@ -93,6 +95,15 @@ class ExpenseCreateApi(APIView):
         payers = PayerSerializer(many=True)
         participants = ParticipantSerializer(many=True)
 
+        def validate_amount(self, value):
+            # Shares are computed and stored in whole cents, so a sub-cent total
+            # cannot be split: 0.00001 across three people yields 0 + 0 + 0.
+            if value != value.quantize(Decimal("0.01")):
+                raise serializers.ValidationError(
+                    "Amount cannot have more than 2 decimal places."
+                )
+            return value
+
     class OutputSerializer(serializers.Serializer):
         id = serializers.IntegerField()
         title = serializers.CharField()
@@ -126,6 +137,14 @@ class ExpenseUpdateApi(APIView):
         split_type = serializers.ChoiceField(choices=["equal", "exact", "percentage"])
         payers = PayerSerializer(many=True)
         participants = ParticipantSerializer(many=True)
+
+        def validate_amount(self, value):
+            # Shares are computed and stored in whole cents.
+            if value != value.quantize(Decimal("0.01")):
+                raise serializers.ValidationError(
+                    "Amount cannot have more than 2 decimal places."
+                )
+            return value
 
     class OutputSerializer(serializers.Serializer):
         id = serializers.IntegerField()
