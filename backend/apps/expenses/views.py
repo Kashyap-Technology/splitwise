@@ -1,12 +1,13 @@
 from decimal import Decimal
 
-from django.db.models import Q
+from django.db.models import DecimalField, OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce
 from rest_framework import serializers, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.core.api.responses import api_success
-from apps.expenses.models import Expense
+from apps.expenses.models import Expense, ExpenseParticipant, ExpensePayer
 from apps.expenses.selectors import get_category
 from apps.expenses.services import (
     create_category,
@@ -28,11 +29,15 @@ class CategoryListApi(APIView):
     class OutputSerializer(serializers.Serializer):
         id = serializers.IntegerField()
         name = serializers.CharField()
-        icon = serializers.CharField()
+        icon = serializers.CharField(allow_null=True, required=False)
         created_by = serializers.CharField(source="created_by.name", allow_null=True)
+        # Added so the categories screen can show which categories are actually
+        # in use and what each has cost the viewer, instead of a bare name list.
+        expense_count = serializers.IntegerField()
+        your_spend = serializers.DecimalField(max_digits=12, decimal_places=5)
 
     def get(self, request):
-        categories = get_category()
+        categories = get_category(user=request.user)
 
         serializer = self.OutputSerializer(categories, many=True)
 
@@ -220,14 +225,47 @@ class UserExpenseListApi(APIView):
         category_name = serializers.CharField(source="category.name")
         group_id = serializers.IntegerField(source="group.id")
         group_name = serializers.CharField(source="group.name")
+        # Added so the user's expense feed can be ordered and grouped by date
+        # without a second request, and so each row can show what the viewer
+        # personally owes or is owed instead of just the group total.
+        created_at = serializers.DateTimeField()
+        your_paid = serializers.DecimalField(max_digits=10, decimal_places=5)
+        your_share = serializers.DecimalField(max_digits=10, decimal_places=5)
 
     def get(self, request):
+        # Subqueries rather than a joined aggregate: the `|` filter below spans
+        # two relations, so a single joined Sum would multiply each expense's
+        # rows against the other relation's rows and inflate both figures.
+        money = DecimalField(max_digits=10, decimal_places=5)
+
         expenses = (
             Expense.objects.filter(
                 Q(expense_payers__user=request.user)
                 | Q(expense_participants__user=request.user)
             )
             .select_related("category", "group")
+            .annotate(
+                your_paid=Coalesce(
+                    Subquery(
+                        ExpensePayer.objects.filter(
+                            expense=OuterRef("pk"), user=request.user
+                        ).values("amount_paid")[:1],
+                        output_field=money,
+                    ),
+                    Decimal("0"),
+                    output_field=money,
+                ),
+                your_share=Coalesce(
+                    Subquery(
+                        ExpenseParticipant.objects.filter(
+                            expense=OuterRef("pk"), user=request.user
+                        ).values("amount_to_pay")[:1],
+                        output_field=money,
+                    ),
+                    Decimal("0"),
+                    output_field=money,
+                ),
+            )
             .distinct()
             .order_by("-created_at")
         )
@@ -248,7 +286,6 @@ class GroupBalanceApi(APIView):
         group = get_group_by_id(group_id=group_id)
 
         balance = get_group_balance(group=group)
-        print(balance)
 
         return api_success(
             data=balance,

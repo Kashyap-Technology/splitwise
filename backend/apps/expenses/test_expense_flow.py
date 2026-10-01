@@ -982,3 +982,116 @@ class ApiContractTests(SplitFlowTestBase):
                 self.bob.id: Decimal("30.00000"),
             },
         )
+
+
+class UserExpenseFeedTests(SplitFlowTestBase):
+    """The /expenses feed, which powers the global expenses page."""
+
+    def setUp(self):
+        super().setUp()
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.alice)
+
+    def feed(self, user=None):
+        self.client.force_authenticate(user=user or self.alice)
+        response = self.client.get("/api/expenses/user/expenses/")
+        self.assertEqual(response.status_code, 200, response.content)
+        return {row["id"]: row for row in response.data["data"]}
+
+    def test_feed_reports_the_viewers_own_paid_and_share(self):
+        # Alice pays for everything and takes 70% of the bill.
+        expense = self.make_expense(
+            title="Groceries",
+            amount="100.00",
+            split_type="percentage",
+            payers=[{"user_id": self.alice.id, "amount_paid": "100.00"}],
+            participants=[
+                {"user_id": self.alice.id, "value": "70"},
+                {"user_id": self.bob.id, "value": "30"},
+            ],
+        )
+
+        row = self.feed()[expense.id]
+        self.assertEqual(Decimal(str(row["your_paid"])), Decimal("100.00000"))
+        self.assertEqual(Decimal(str(row["your_share"])), Decimal("70.00000"))
+        self.assertEqual(Decimal(str(row["amount"])), Decimal("100.00000"))
+        self.assertEqual(row["category_name"], "Food")
+        self.assertEqual(row["group_name"], "Trip")
+
+        # Bob fronted nothing but owes 30%.
+        bob_row = self.feed(user=self.bob)[expense.id]
+        self.assertEqual(Decimal(str(bob_row["your_paid"])), Decimal("0.00000"))
+        self.assertEqual(Decimal(str(bob_row["your_share"])), Decimal("30.00000"))
+
+    def test_feed_includes_expenses_the_viewer_only_participates_in(self):
+        # Nobody but bob pays, so alice must still see it as a participant.
+        expense = self.make_expense(
+            title="Taxi",
+            amount="30.00",
+            split_type="equal",
+            payers=[{"user_id": self.bob.id, "amount_paid": "30.00"}],
+            participants=[
+                {"user_id": self.alice.id},
+                {"user_id": self.bob.id},
+            ],
+        )
+
+        rows = self.feed()
+
+        self.assertIn(expense.id, rows)
+        self.assertEqual(Decimal(str(rows[expense.id]["your_share"])), Decimal("15.00000"))
+        self.assertEqual(Decimal(str(rows[expense.id]["your_paid"])), Decimal("0.00000"))
+
+    def test_feed_omits_expenses_the_viewer_is_not_involved_in(self):
+        other = self.make_user("carol")
+        GroupMembership.objects.create(
+            group=self.group, user=other, role="member"
+        )
+        self.make_expense(
+            title="Not yours",
+            amount="12.00",
+            split_type="equal",
+            payers=[{"user_id": other.id, "amount_paid": "12.00"}],
+            participants=[{"user_id": other.id}],
+        )
+
+        self.assertEqual(self.feed(), {})
+
+    def test_feed_returns_each_expense_once(self):
+        # alice is both a payer and a participant, which would duplicate the row
+        # if the endpoint did not de-duplicate the two joined relations.
+        expense = self.make_expense(
+            title="Dinner",
+            amount="60.00",
+            split_type="equal",
+            payers=[{"user_id": self.alice.id, "amount_paid": "60.00"}],
+            participants=[
+                {"user_id": self.alice.id},
+                {"user_id": self.bob.id},
+            ],
+        )
+
+        self.assertEqual(list(self.feed()), [expense.id])
+
+    def test_feed_includes_a_created_at_the_feed_sorts_by(self):
+        first = self.make_expense(
+            title="Older",
+            amount="10.00",
+            split_type="equal",
+            payers=[{"user_id": self.alice.id, "amount_paid": "10.00"}],
+            participants=[{"user_id": self.alice.id}],
+        )
+        second = self.make_expense(
+            title="Newer",
+            amount="20.00",
+            split_type="equal",
+            payers=[{"user_id": self.alice.id, "amount_paid": "20.00"}],
+            participants=[{"user_id": self.alice.id}],
+        )
+
+        self.client.force_authenticate(user=self.alice)
+        response = self.client.get("/api/expenses/user/expenses/")
+        rows = response.data["data"]
+
+        self.assertEqual([row["id"] for row in rows], [second.id, first.id])
+        self.assertTrue(rows[0]["created_at"])
