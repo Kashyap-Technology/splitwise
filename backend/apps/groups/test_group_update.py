@@ -2,6 +2,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.groups.models import Group, GroupMembership
+from apps.groups.views import GroupCreateApi, GroupUpdateApi
 from apps.users.models import User
 
 
@@ -114,6 +115,23 @@ class GroupUpdateTests(TestCase):
         self.group.refresh_from_db()
         self.assertIsNone(self.group.group_imagekey)
         self.assertEqual(self.group.name, "Damak Trip")
+
+    def test_create_and_update_serialisers_keep_separate_uniqueness_rules(self):
+        # GroupCreateApi and GroupUpdateApi carry near-identical serializers but
+        # their uniqueness rules must differ: create checks every group, update
+        # has to exclude the group being edited. Copying either one onto the other
+        # silently breaks a flow, so both behaviours are pinned here.
+        create_serializer = GroupCreateApi.InputSerializer(
+            data={"name": "Damak Trip", "description": "clash"}
+        )
+        self.assertFalse(create_serializer.is_valid())
+        self.assertIn("name", create_serializer.errors)
+
+        update_serializer = GroupUpdateApi.InputSerializer(
+            data={"name": "Damak Trip", "description": "fine"},
+            context={"group_id": self.group.id},
+        )
+        self.assertTrue(update_serializer.is_valid(), update_serializer.errors)
 
     def test_image_can_be_removed_explicitly(self):
         # An explicit null clears the key, which is distinct from omitting the
