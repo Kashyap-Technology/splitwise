@@ -71,6 +71,9 @@ export function useGroupUpdateMutation(groupId: string | number) {
       queryClient.invalidateQueries({ queryKey: ['group', String(groupId)] })
       queryClient.invalidateQueries({ queryKey: ['groups'] })
     },
+    // Kept in the mutation state so the caller can render it. A rejected save
+    // used to be logged to the console only, which left the user staring at a
+    // dialog that appeared to do nothing.
     onError: (error: any) => {
       console.error('Group update failed:', error.response?.data || error.message)
     },
