@@ -1,6 +1,40 @@
 import type { ReactNode } from 'react'
 import { Card } from '@/components/ui/card'
 
+type SummaryTone = 'blue' | 'amber' | 'emerald' | 'slate'
+
+// Each tone gets its own tinted gradient so the cards read as distinct
+// summaries at a glance instead of two identical grey panels.
+const TONES: Record<
+  SummaryTone,
+  { card: string; chip: string; glow: string; accent: string }
+> = {
+  blue: {
+    card: 'bg-gradient-to-br from-blue-50 via-white to-blue-100/70 ring-1 ring-blue-100',
+    chip: 'bg-blue-100/80 text-blue-700',
+    glow: 'text-blue-200/50',
+    accent: 'text-blue-600',
+  },
+  amber: {
+    card: 'bg-gradient-to-br from-amber-50 via-white to-orange-100/70 ring-1 ring-amber-100',
+    chip: 'bg-amber-100/80 text-amber-700',
+    glow: 'text-orange-200/60',
+    accent: 'text-amber-600',
+  },
+  emerald: {
+    card: 'bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70 ring-1 ring-emerald-100',
+    chip: 'bg-emerald-100/80 text-emerald-700',
+    glow: 'text-emerald-200/50',
+    accent: 'text-emerald-600',
+  },
+  slate: {
+    card: 'bg-gradient-to-br from-slate-100 via-white to-slate-200/70 ring-1 ring-slate-200',
+    chip: 'bg-slate-200/80 text-slate-700',
+    glow: 'text-slate-300/60',
+    accent: 'text-slate-600',
+  },
+}
+
 export function SummaryCard({
   icon,
   label,
@@ -9,66 +43,99 @@ export function SummaryCard({
   actionLabel,
   valueClassName = 'text-slate-900',
   prefixText,
-  rightIcon,
   onAction,
+  tone = 'slate',
+  badge,
+  valueFormat = 'currency',
 }: {
   icon: ReactNode
   label: string
   value: number
   meta: string
-  actionLabel: string
+  actionLabel?: string
   valueClassName?: string
   prefixText?: string
-  rightIcon?: ReactNode
   onAction?: () => void
+  tone?: SummaryTone
+  badge?: string
+  valueFormat?: 'currency' | 'number'
 }) {
-  // Format number and split integer and decimal portions for visual styling
-  const formatted = value.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  const formatted = Math.abs(value).toLocaleString('en-US', {
+    minimumFractionDigits: valueFormat === 'currency' ? 2 : 0,
+    maximumFractionDigits: valueFormat === 'currency' ? 2 : 0,
   })
   const [integerPart, decimalPart] = formatted.split('.')
 
+  const palette = TONES[tone]
+
   return (
-    <Card className="rounded-[28px] border-none shadow-none bg-[#ECEEF6] p-6 flex flex-col justify-between relative overflow-hidden min-h-[190px]">
-      <div>
+    <Card
+      className={`rounded-[28px] border-none shadow-sm p-6 flex flex-col justify-between relative overflow-hidden min-h-[210px] ${palette.card}`}
+    >
+      {/* Decorative watermark */}
+      <div
+        className={`absolute -right-6 -bottom-8 pointer-events-none opacity-60 ${palette.glow}`}
+        aria-hidden="true"
+      >
+        {icon}
+      </div>
+
+      <div className="relative">
         {/* Header Label */}
-        <div className="flex items-center gap-2 text-[11px] font-bold tracking-wider text-slate-600 uppercase">
-          <span className="text-slate-700">{icon}</span>
-          <span>{label}</span>
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`inline-flex items-center justify-center h-9 w-9 rounded-xl ${palette.chip}`}
+          >
+            {icon}
+          </span>
+          <span className="text-sm font-bold tracking-wide text-slate-700 uppercase">
+            {label}
+          </span>
         </div>
+
+        {badge && (
+          <span
+            className={`mt-3 inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${palette.chip}`}
+          >
+            {badge}
+          </span>
+        )}
 
         {/* Amount & Prefix */}
         <div className="mt-4">
           {prefixText && (
-            <span className="block text-base font-semibold text-slate-500 mb-0.5">
+            <span className="block text-lg font-bold text-slate-600 mb-1">
               {prefixText}
             </span>
           )}
 
-          <div className={`flex items-baseline font-extrabold tracking-tight ${valueClassName}`}>
-            <span className="text-4xl md:text-[42px] leading-none">${integerPart}</span>
-            <span className="text-2xl font-bold opacity-60">.{decimalPart}</span>
+          <div
+            className={`flex items-baseline font-extrabold tracking-tight ${valueClassName}`}
+          >
+            {valueFormat === 'currency' ? (
+              <>
+                <span className="text-5xl md:text-[56px] leading-none">${integerPart}</span>
+                <span className="text-3xl font-bold opacity-60">.{decimalPart}</span>
+              </>
+            ) : (
+              <span className="text-5xl md:text-[56px] leading-none">{integerPart}</span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Decorative Right Icon Watermark */}
-      {rightIcon && (
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20 text-orange-400">
-          {rightIcon}
-        </div>
-      )}
-
       {/* Footer Meta & Action */}
-      <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200/70 text-xs">
-        <span className="text-slate-400 font-medium">{meta}</span>
-        <button
-          onClick={onAction}
-          className="text-[#2547EB] font-bold hover:underline transition-all"
-        >
-          {actionLabel}
-        </button>
+      <div className="relative flex items-center justify-between mt-6 pt-4 border-t border-slate-200/70">
+        <span className="text-sm font-semibold text-slate-600">{meta}</span>
+        {actionLabel && (
+          <button
+            type="button"
+            onClick={onAction}
+            className={`text-sm font-bold hover:underline transition-all ${palette.accent}`}
+          >
+            {actionLabel}
+          </button>
+        )}
       </div>
     </Card>
   )

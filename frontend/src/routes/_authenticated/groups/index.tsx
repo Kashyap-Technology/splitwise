@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 
+import { useAuth } from '@/features/auth/hooks/useAuth'
 import { groupSchema, type CreateGroupInputs } from '@/features/group/schemas/groupSchema'
 import { useGroupMutation } from '@/features/group/api/useGroupMutation'
 import { useGroupQuery } from '@/features/group/api/useGroupsQuery'
@@ -62,9 +63,14 @@ type GroupItem = {
 }
 
 export function RouteComponent() {
+  const { user: me } = useAuth()
   const { data: rawGroups = [], isLoading, isError } = useGroupQuery()
   const groups = rawGroups as GroupItem[]
-  console.log('groups',groups)
+
+  // "Settled Up" only when no group has the user in the red.
+  const isUserSettledUp = !groups.some(
+    (group) => (group.your_balance ?? 0) < -0.005,
+  )
 
   const [searchQuery, setSearchQuery] = useState('')
   const [topSearchQuery, setTopSearchQuery] = useState('')
@@ -184,12 +190,18 @@ export function RouteComponent() {
 
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-slate-900 leading-tight">Alex Chen</p>
-              <p className="text-xs text-slate-400 font-medium">Settled Up</p>
+              <p className="text-sm font-bold text-slate-900 leading-tight">
+                {me?.name || 'Guest User'}
+              </p>
+              <p className="text-xs text-slate-400 font-medium">
+                {isUserSettledUp ? 'Settled Up' : 'Has dues'}
+              </p>
             </div>
             <Avatar className="h-10 w-10 border border-white shadow-sm">
-              <AvatarImage src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256" alt="Alex Chen" />
-              <AvatarFallback className="bg-slate-300 text-slate-700">AC</AvatarFallback>
+              <AvatarImage src={me?.profile_image_url || undefined} alt={me?.name || 'You'} />
+              <AvatarFallback className="bg-blue-50 text-blue-600 font-bold">
+                {getInitials(me?.name)}
+              </AvatarFallback>
             </Avatar>
           </div>
         </div>
