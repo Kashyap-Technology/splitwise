@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, createFileRoute, redirect } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, KeyRound } from "lucide-react";
 
 import {
@@ -28,11 +28,10 @@ export const Route = createFileRoute("/reset-password")({
     uid: typeof search.uid === "string" ? search.uid : "",
     token: typeof search.token === "string" ? search.token : "",
   }),
-  beforeLoad: ({ context }) => {
-    if (context.auth?.isAuthenticated) {
-      throw redirect({ to: "/dashboard" });
-    }
-  },
+  // Deliberately no authenticated-redirect, unlike /login. This page is reached
+  // from an email, which people open on a different device from the one holding
+  // their session -- and a live session on the same browser is no reason to
+  // refuse someone the reset they just asked for.
   component: ResetPasswordPage,
 });
 
