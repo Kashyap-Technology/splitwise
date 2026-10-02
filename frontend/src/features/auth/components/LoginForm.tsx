@@ -1,4 +1,5 @@
 import { Controller, useForm } from "react-hook-form";
+import { Loader2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import {
   Card,
@@ -14,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { loginSchema, LoginFormValues } from "../schemas/loginSchema";
 import { useLoginMutation } from "../api/useLoginMutation";
+import { getErrorMessage } from "@/lib/getErrorMessage";
 
 export function LoginForm() {
   const { mutate, isPending, error } = useLoginMutation();
@@ -49,10 +51,15 @@ export function LoginForm() {
       </CardDescription>
       <CardContent className="space-y-6">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* API ERROR ALERT */}
+          {/* API error, from the API's own message rather than axios's
+              "Request failed with status code NNN". The toast also fires, so
+              this inline copy is a fallback for the moment before it appears. */}
           {error && (
-            <div className="rounded-md bg-red-50 p-3 text-center text-xs font-medium text-red-600 border border-red-200">
-              {error.message || "Invalid email or password. Please try again."}
+            <div
+              role="alert"
+              className="rounded-md bg-red-50 p-3 text-center text-xs font-medium text-red-600 border border-red-200"
+            >
+              {getErrorMessage(error)}
             </div>
           )}
 
@@ -106,7 +113,14 @@ export function LoginForm() {
             className="w-full cursor-pointer"
             disabled={isPending}
           >
-            {isPending ? "Signing in ..." : "Sign In"}
+            {isPending ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Signing in...
+              </span>
+            ) : (
+              "Sign In"
+            )}
           </Button>
           <div className="text-center text-xs text-gray-500 mt-2">
             Don't have an account?{" "}

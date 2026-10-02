@@ -1,5 +1,6 @@
 import {api} from '@/api/client'
-import {useMutation,useQueryClient} from '@tanstack/react-query' 
+import { useMutationWithToast } from '@/lib/useMutationWithToast'
+import { useQueryClient } from "@tanstack/react-query" 
 
 async function updateUserApi(formData:FormData){
     const response=await api.patch('/users/update/',formData)
@@ -13,7 +14,8 @@ return response.data
 export function useUserUpdateMutation(){
     const queryClient=useQueryClient()
 
-    return useMutation({
+    return useMutationWithToast({
+        success: 'Profile updated',
         mutationFn:updateUserApi,
         onMutate: async (formData) => {
             await queryClient.cancelQueries({queryKey:['me']})
@@ -47,7 +49,8 @@ export function useUserUpdateMutation(){
 export function useUserDeleteMutation() {
     const queryClient = useQueryClient()
 
-    return useMutation({
+    return useMutationWithToast({
+        success: 'Account deleted',
         mutationFn: deleteUserApi,
         onMutate: async () => {
             // 1. Cancel outgoing fetch requests for the user query
