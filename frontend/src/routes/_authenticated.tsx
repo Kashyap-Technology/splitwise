@@ -37,7 +37,7 @@ function AuthenticatedLayout() {
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
             <Zap className="w-4 h-4 fill-white" />
           </div>
-          <span className="font-bold text-xl tracking-tight text-blue-600">Splitsy</span>
+          <span className="font-bold text-xl tracking-tight text-blue-600">Splitwise</span>
         </div>
 
         <Sheet open={open} onOpenChange={setOpen}>

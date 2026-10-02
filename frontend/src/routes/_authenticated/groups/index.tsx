@@ -242,7 +242,7 @@ export function RouteComponent() {
             <DialogTrigger render={
               <Button className="bg-[#0038FF] hover:bg-blue-700 text-white rounded-full px-6 h-12 flex items-center gap-2 shadow-md shadow-blue-500/20 font-semibold text-sm shrink-0">
                 <Plus className="w-5 h-5 stroke-[2.5]" />
-                <span>New Space</span>
+                <span>New Group</span>
               </Button>
             }/>
 

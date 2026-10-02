@@ -128,3 +128,202 @@
     @apply font-sans;
   }
 }
+
+/* ==========================================================================
+   Dark mode for the hand-written screens
+   ==========================================================================
+
+   The `.dark` tokens above are shadcn's, and the components in `components/ui`
+   consume them, so they already follow the theme. The routed screens do not:
+   they were written against Tailwind's raw palette (`bg-white`, `text-slate-900`,
+   `bg-blue-50`) rather than semantic tokens, and roughly five sixths of their
+   colour is hardcoded that way.
+
+   Toggling `.dark` therefore does nothing for them on its own. Rather than
+   rewrite every screen, these rules re-point those palette utilities at the
+   theme tokens when `.dark` is present.
+
+   Two things make this work:
+
+   1. Specificity. `.dark .bg-white` is (0,2,0) against Tailwind's (0,1,0), so it
+      wins regardless of source order.
+   2. These rules are unlayered, and unlayered CSS beats anything in a cascade
+      layer, so they also win against Tailwind's `utilities` layer.
+
+   The mapping is the one dark mode requires: a dark foreground becomes a light
+   one, and a light background becomes a dark one. Status hues keep their hue and
+   move their lightness, which is what reads as "the same chip, at night".
+
+   This is a bridge, not a destination. Migrating these screens to semantic
+   tokens lets this whole block be deleted. Kept deliberately explicit and
+   commented so it can be removed as one unit once that happens.
+   ========================================================================== */
+
+.dark .bg-white { background-color: var(--card); }
+.dark .bg-white\/60 { background-color: color-mix(in oklch, var(--card) 60%, transparent); }
+.dark .bg-white\/70 { background-color: color-mix(in oklch, var(--card) 70%, transparent); }
+.dark .bg-white\/50 { background-color: color-mix(in oklch, var(--card) 50%, transparent); }
+.dark .bg-white\/10 { background-color: color-mix(in oklch, var(--card) 10%, transparent); }
+
+.dark .bg-slate-50 { background-color: var(--background); }
+.dark .bg-slate-50\/50 { background-color: color-mix(in oklch, var(--background) 50%, transparent); }
+.dark .bg-slate-50\/60 { background-color: color-mix(in oklch, var(--background) 60%, transparent); }
+.dark .bg-slate-100 { background-color: var(--muted); }
+.dark .bg-slate-100\/70 { background-color: color-mix(in oklch, var(--muted) 70%, transparent); }
+.dark .bg-slate-200 { background-color: color-mix(in oklch, var(--muted) 70%, var(--background)); }
+.dark .bg-slate-200\/80 { background-color: color-mix(in oklch, var(--muted) 80%, transparent); }
+.dark .bg-slate-200\/50 { background-color: color-mix(in oklch, var(--muted) 50%, transparent); }
+.dark .bg-slate-700 { background-color: var(--accent); }
+
+/* Text: the light-mode foreground scale maps to the dark one, inverted. */
+.dark .text-slate-900 { color: var(--foreground); }
+.dark .text-slate-800 { color: var(--card-foreground); }
+.dark .text-slate-700 { color: var(--foreground); }
+.dark .text-slate-600 { color: oklch(0.83 0 0); }
+.dark .text-slate-500 { color: var(--muted-foreground); }
+.dark .text-slate-400 { color: oklch(0.62 0 0); }
+.dark .text-slate-300 { color: oklch(0.55 0 0); }
+.dark .text-slate-300\/60 { color: oklch(0.55 0 0 / 0.6); }
+
+/* Borders and dividers become subtle light lines on a dark surface. */
+.dark .border-slate-100,
+.dark .divide-slate-100 { border-color: oklch(1 0 0 / 10%); }
+.dark .border-slate-200,
+.dark .divide-slate-200 { border-color: oklch(1 0 0 / 14%); }
+.dark .border-slate-200\/80 { border-color: oklch(1 0 0 / 12%); }
+.dark .border-slate-200\/70 { border-color: oklch(1 0 0 / 10%); }
+.dark .border-slate-300 { border-color: oklch(1 0 0 / 22%); }
+.dark .ring-slate-200 { --tw-ring-color: oklch(1 0 0 / 20%); }
+.dark .bg-black\/10 { background-color: oklch(0 0 0 / 40%); }
+.dark .bg-black\/30 { background-color: oklch(0 0 0 / 55%); }
+.dark .bg-black\/40 { background-color: oklch(0 0 0 / 65%); }
+.dark .text-black\/80 { color: oklch(0.98 0 0 / 0.8); }
+.dark .bg-white\/10 { background-color: oklch(1 0 0 / 10%); }
+
+/* Primary blue. Filled buttons keep their colour because they carry white text;
+   only the text-on-dark and tinted-chip usages shift lightness. */
+.dark .text-blue-600 { color: oklch(0.72 0.15 256); }
+.dark .text-blue-700 { color: oklch(0.78 0.13 256); }
+.dark .bg-blue-50 { background-color: oklch(0.28 0.07 256 / 0.55); }
+.dark .bg-blue-100 { background-color: oklch(0.33 0.09 256 / 0.55); }
+.dark .border-blue-100 { border-color: oklch(0.72 0.15 256 / 0.35); }
+.dark .border-blue-500 { border-color: oklch(0.72 0.15 256 / 0.6); }
+.dark .border-blue-600 { border-color: oklch(0.72 0.15 256 / 0.7); }
+.dark .ring-blue-500 { --tw-ring-color: oklch(0.72 0.15 256 / 0.6); }
+
+/* Status hues: same hue, lighter foreground, dark tinted chip. */
+.dark .text-emerald-600,
+.dark .text-emerald-500 { color: oklch(0.79 0.17 163); }
+.dark .bg-emerald-50 { background-color: oklch(0.32 0.07 163 / 0.5); }
+.dark .bg-emerald-100 { background-color: oklch(0.36 0.09 163 / 0.5); }
+
+.dark .text-rose-600,
+.dark .text-rose-500 { color: oklch(0.75 0.16 20); }
+.dark .bg-rose-50 { background-color: oklch(0.31 0.09 20 / 0.5); }
+
+.dark .text-red-600,
+.dark .text-red-500 { color: oklch(0.73 0.17 25); }
+.dark .bg-red-50 { background-color: oklch(0.31 0.1 25 / 0.5); }
+
+.dark .text-orange-600 { color: oklch(0.79 0.16 70); }
+.dark .text-orange-500 { color: oklch(0.82 0.15 70); }
+
+/* Page and card backgrounds written as arbitrary hex in a few screens. */
+.dark .bg-\[\#F8FAFC\],
+.dark .bg-\[\#F4F5F9\] { background-color: var(--background); }
+.dark .bg-\[\#E9ECF3\] { background-color: var(--muted); }
+.dark .bg-\[\#EAEFFD\] { background-color: oklch(0.33 0.09 256 / 0.5); }
+
+/* The accent gradient on the dashboard balance card is too light to read on. */
+.dark .from-blue-50\/40 { --tw-gradient-from: oklch(0.3 0.08 256 / 0.5) var(--tw-gradient-from-position); }
+.dark .to-indigo-50\/20 { --tw-gradient-to: oklch(0.28 0.06 280 / 0.35) var(--tw-gradient-to-position); }
+
+/* --------------------------------------------------------------------------
+   Gradient stops
+
+   The group summary cards are `from-<hue>-50 via-white to-<hue>-100/70`. The
+   `via-white` midpoint is near-opaque, so leaving it alone leaves a pale card
+   in an otherwise dark screen no matter what the ends resolve to. All three
+   stops have to move together or the card just changes hue.
+   -------------------------------------------------------------------------- */
+.dark .via-white { --tw-gradient-via: var(--muted) var(--tw-gradient-via-position); }
+.dark .from-blue-50 { --tw-gradient-from: oklch(0.32 0.08 256 / 0.55) var(--tw-gradient-from-position); }
+.dark .from-blue-100 { --tw-gradient-from: oklch(0.34 0.09 256 / 0.55) var(--tw-gradient-from-position); }
+.dark .to-blue-100\/70 { --tw-gradient-to: oklch(0.3 0.08 256 / 0.55) var(--tw-gradient-to-position); }
+.dark .via-indigo-50 { --tw-gradient-via: oklch(0.3 0.06 280 / 0.5) var(--tw-gradient-via-position); }
+.dark .to-sky-50 { --tw-gradient-to: oklch(0.32 0.07 230 / 0.55) var(--tw-gradient-to-position); }
+.dark .from-amber-50 { --tw-gradient-from: oklch(0.33 0.07 75 / 0.55) var(--tw-gradient-from-position); }
+.dark .to-orange-100\/70 { --tw-gradient-to: oklch(0.31 0.09 55 / 0.55) var(--tw-gradient-to-position); }
+.dark .from-emerald-50 { --tw-gradient-from: oklch(0.32 0.07 163 / 0.55) var(--tw-gradient-from-position); }
+.dark .to-emerald-100\/70 { --tw-gradient-to: oklch(0.3 0.07 163 / 0.55) var(--tw-gradient-to-position); }
+.dark .from-slate-100 { --tw-gradient-from: var(--muted) var(--tw-gradient-from-position); }
+.dark .to-slate-200\/70 { --tw-gradient-to: color-mix(in oklch, var(--muted) 70%, var(--card)) var(--tw-gradient-to-position); }
+.dark .to-slate-200 { --tw-gradient-to: color-mix(in oklch, var(--muted) 70%, var(--card)) var(--tw-gradient-to-position); }
+
+/* --------------------------------------------------------------------------
+   The remaining tinted chips
+
+   A second set of palettes used amber/orange/violet/indigo/purple, plus a few
+   opacity variants of the hues handled above. Left unhandled these stay
+   near-white, which reads as a light chip floating on a dark card.
+   -------------------------------------------------------------------------- */
+.dark .bg-amber-50 { background-color: oklch(0.32 0.07 75 / 0.5); }
+.dark .bg-amber-50\/50 { background-color: oklch(0.32 0.07 75 / 0.5); }
+.dark .bg-amber-100\/60 { background-color: oklch(0.35 0.08 75 / 0.5); }
+.dark .bg-amber-100\/80 { background-color: oklch(0.35 0.08 75 / 0.5); }
+.dark .bg-orange-50 { background-color: oklch(0.32 0.09 55 / 0.5); }
+.dark .bg-orange-200\/60 { background-color: oklch(0.36 0.1 55 / 0.5); }
+.dark .bg-violet-100 { background-color: oklch(0.33 0.09 300 / 0.5); }
+.dark .bg-indigo-100\/60 { background-color: oklch(0.33 0.09 275 / 0.5); }
+.dark .bg-purple-100\/60 { background-color: oklch(0.33 0.09 300 / 0.5); }
+.dark .bg-emerald-100\/60 { background-color: oklch(0.35 0.08 163 / 0.5); }
+.dark .bg-emerald-100\/80 { background-color: oklch(0.35 0.08 163 / 0.5); }
+.dark .bg-rose-100\/80 { background-color: oklch(0.34 0.09 20 / 0.5); }
+.dark .bg-blue-50\/80 { background-color: oklch(0.28 0.07 256 / 0.55); }
+.dark .bg-blue-100\/80 { background-color: oklch(0.33 0.09 256 / 0.55); }
+
+/* The darker chip text shades, which sit in the same family as the 500/600
+   ones above and need the same lift. */
+.dark .text-amber-500,
+.dark .text-amber-600,
+.dark .text-amber-700 { color: oklch(0.81 0.14 75); }
+.dark .text-orange-700 { color: oklch(0.79 0.16 70); }
+.dark .text-emerald-700 { color: oklch(0.79 0.17 163); }
+.dark .text-rose-700 { color: oklch(0.75 0.16 20); }
+.dark .text-red-700 { color: oklch(0.73 0.17 25); }
+.dark .text-violet-600,
+.dark .text-violet-700 { color: oklch(0.76 0.15 300); }
+
+/* The 900/950 shades. These are near-black, and they only ever appeared as the
+   label on a `bg-<hue>-100/60` or `bg-amber-50/50` chip. Darkening the chip
+   above without lifting these would leave black text on a dark chip. */
+.dark .text-emerald-900 { color: oklch(0.85 0.14 163); }
+.dark .text-indigo-900 { color: oklch(0.79 0.13 275); }
+.dark .text-purple-900 { color: oklch(0.79 0.14 300); }
+.dark .text-amber-900,
+.dark .text-amber-950 { color: oklch(0.86 0.13 75); }
+.dark .text-amber-900\/80 { color: oklch(0.86 0.13 75 / 0.8); }
+
+/* Chip borders: a 200-weight hairline is nearly invisible once the chip behind
+   it has gone dark, so these are nudged up rather than left as-is. */
+.dark .border-red-100,
+.dark .border-red-200,
+.dark .border-emerald-200,
+.dark .border-amber-200,
+.dark .border-blue-200 { border-color: oklch(1 0 0 / 12%); }
+.dark .ring-blue-100,
+.dark .ring-amber-100,
+.dark .ring-emerald-100 { --tw-ring-color: oklch(1 0 0 / 12%); }
+
+/* --------------------------------------------------------------------------
+   Gray
+
+   A handful of screens use `gray-*` rather than `slate-*`. Gray has no hue, so
+   these can point at the same neutral tokens instead of hand-picked values.
+   -------------------------------------------------------------------------- */
+.dark .bg-gray-50 { background-color: var(--background); }
+.dark .bg-gray-100 { background-color: var(--muted); }
+.dark .text-gray-600 { color: oklch(0.83 0 0); }
+.dark .text-gray-500 { color: var(--muted-foreground); }
+.dark .text-gray-400 { color: oklch(0.62 0 0); }
+.dark .border-gray-300 { border-color: oklch(1 0 0 / 22%); }

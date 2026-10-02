@@ -37,7 +37,7 @@ function IndexComponent() {
             className="flex items-center gap-2 text-xl font-bold tracking-tight text-blue-600"
           >
             <Equal className="h-6 w-6 stroke-[3]" />
-            <span>Splitsy</span>
+            <span>Splitwise</span>
           </Link>
 
           <nav className="hidden items-center gap-8 md:flex">

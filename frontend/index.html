@@ -4,7 +4,25 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>splitsy</title>
+    <title>Splitwise</title>
+    <script>
+      // Applies the saved theme before first paint. React cannot do this: the
+      // bundle has not loaded yet, so without this the page paints light and
+      // then flips to dark a moment later.
+      (function () {
+        try {
+          var stored = localStorage.getItem('splitwise-theme');
+          var dark =
+            stored === 'dark' ||
+            ((!stored || stored === 'system') &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        } catch (e) {
+          /* storage blocked; fall through to light */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
