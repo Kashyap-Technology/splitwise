@@ -8,7 +8,9 @@ from apps.users.views import (
     UserLoginAPi,
     UserLogoutApi,
     UserMeApi,
-    UserPasswordResetApi,
+    UserPasswordChangeApi,
+    UserPasswordForgotApi,
+    UserPasswordResetConfirmApi,
     UserSearchApi,
     UserUpdateApi,
 )
@@ -19,7 +21,19 @@ urlpatterns = [
     path("delete/", UserDeleteApi.as_view(), name="delete"),
     path("login/", UserLoginAPi.as_view(), name="login"),
     path("logout/", UserLogoutApi.as_view(), name="logout"),
-    path("password/reset/", UserPasswordResetApi.as_view(), name="password-reset"),
+    # Signed-in change: proves ownership with the current password.
+    path(
+        "password/change/", UserPasswordChangeApi.as_view(), name="password-change"
+    ),
+    # Signed-out reset: request a link, then redeem it.
+    path(
+        "password/forgot/", UserPasswordForgotApi.as_view(), name="password-forgot"
+    ),
+    path(
+        "password/reset/confirm/",
+        UserPasswordResetConfirmApi.as_view(),
+        name="password-reset-confirm",
+    ),
     path("list/", UserListApi.as_view(), name="user-list"),
     path("search/", UserSearchApi.as_view(), name="user-search"),
     path("me/", UserMeApi.as_view(), name="me"),

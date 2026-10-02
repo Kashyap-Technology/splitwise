@@ -1,8 +1,11 @@
 import json
 import logging
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
 from django.http import HttpResponse
+from django.utils.http import base36_to_int
 from rest_framework import serializers, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -11,6 +14,7 @@ from rest_framework.views import APIView
 from apps.core.api.responses import api_success
 from apps.core.models import AuditLog
 from apps.core.services import create_audit_log, get_storj_public_url
+from apps.users.email import send_password_reset_email
 from apps.users.export import build_export
 from apps.users.selectors import list_user, search_users
 from apps.users.services import (
@@ -23,6 +27,25 @@ from apps.users.services import (
 )
 
 logger = logging.getLogger(__name__)
+
+User = get_user_model()
+
+
+def _user_from_uid(uid):
+    """Resolve the base36 user id from a reset link to a User, or None.
+
+    Django's reset token does not encode who it belongs to -- its first segment
+    is a timestamp. Django's own confirm view therefore carries the id
+    separately in the URL, and so does this one. The id is only a lookup hint;
+    `check_token` still has to agree before anything is changed.
+    """
+    if not uid:
+        return None
+    try:
+        pk = base36_to_int(uid)
+    except (ValueError, TypeError):
+        return None
+    return User.objects.filter(pk=pk).first()
 
 
 class UserCreateAPi(APIView):
@@ -275,7 +298,17 @@ class UserLogoutApi(APIView):
         return response
 
 
-class UserPasswordResetApi(APIView):
+class UserPasswordChangeApi(APIView):
+    """Change the password while already signed in, proving ownership with the
+    current one.
+
+    Renamed from `UserPasswordResetApi` on `password/reset/`. "Reset" is the
+    word people associate with the forgot-password email flow, which this is
+    not: it requires an authenticated session and the old password. The real
+    reset lives at `password/forgot/` and `password/reset/confirm/`. Nothing in
+    the frontend called the old path, so this is not a breaking change.
+    """
+
     permission_classes = [IsAuthenticated]
 
     class InputSerializer(serializers.Serializer):
@@ -310,5 +343,101 @@ class UserPasswordResetApi(APIView):
         return api_success(
             data=None,
             message="User Password Updated Success.",
+            status_code=status.HTTP_200_OK,
+        )
+
+
+class UserPasswordForgotApi(APIView):
+    """Start a password reset: email a one-time link.
+
+    Deliberately answers 200 with the same body whether or not the address is
+    registered. Returning 404 for an unknown email would turn this endpoint
+    into a membership oracle -- anyone could use it to enumerate which
+    addresses have accounts, and Splitwise's user list is exactly the sort of
+    thing worth enumerating.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    class InputSerializer(serializers.Serializer):
+        email = serializers.EmailField()
+
+    def post(self, request):
+        serializer = self.InputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data["email"]
+        user = User.objects.filter(email__iexact=email).first()
+
+        if user is not None:
+            token = default_token_generator.make_token(user)
+            try:
+                send_password_reset_email(user=user, token=token)
+            except Exception:
+                # A mail outage must not turn into a 500 that tells the caller
+                # the address exists. Log it and answer as though it worked.
+                logger.exception("Password reset email failed for %s", email)
+
+        return api_success(
+            data=None,
+            message=(
+                "If an account exists for that email, a reset link is on its way."
+            ),
+            status_code=status.HTTP_200_OK,
+        )
+
+
+class UserPasswordResetConfirmApi(APIView):
+    """Finish a password reset with the emailed token."""
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    class InputSerializer(serializers.Serializer):
+        uid = serializers.CharField()
+        token = serializers.CharField()
+        new_password = serializers.CharField(
+            write_only=True, validators=[validate_password]
+        )
+        confirm_password = serializers.CharField(write_only=True)
+
+        def validate(self, attrs):
+            if attrs["new_password"] != attrs["confirm_password"]:
+                raise serializers.ValidationError(
+                    {"confirm_password": "Passwords do not match."}
+                )
+            return attrs
+
+    def post(self, request):
+        serializer = self.InputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token = serializer.validated_data["token"]
+        new_password = serializer.validated_data["new_password"]
+
+        # The uid is only a lookup hint. `check_token` verifies the HMAC over
+        # this specific user's id, email, last login and password hash, so a
+        # mismatched or forged uid cannot pass.
+        user = _user_from_uid(serializer.validated_data["uid"])
+
+        if user is None or not default_token_generator.check_token(user, token):
+            return api_success(
+                data=None,
+                message=(
+                    "This reset link is invalid or has expired. "
+                    "Request a new one to continue."
+                ),
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        reset_user_password(user=user, new_password=new_password)
+
+        # Changing the password re-salts the hash, which changes the token's
+        # HMAC input, so the same link cannot be replayed to set a second
+        # password. Nothing to revoke here.
+        return api_success(
+            data=None,
+            message="Your password has been reset. You can sign in now.",
             status_code=status.HTTP_200_OK,
         )
