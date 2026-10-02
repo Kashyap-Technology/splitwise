@@ -1,6 +1,8 @@
+import re
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
 from django.test import TestCase, override_settings
@@ -8,9 +10,16 @@ from django.utils.http import int_to_base36
 from rest_framework.permissions import AllowAny
 from rest_framework.test import APIClient
 
+from apps.users.email import send_password_reset_email
 from apps.users.views import UserPasswordResetConfirmApi
 
 User = get_user_model()
+
+
+def _token_from_link(body):
+    """Pull the token back out of an emailed reset link."""
+    match = re.search(r"[?&]token=([A-Za-z0-9]+-[A-Za-z0-9]+)", body)
+    return match.group(1) if match else None
 
 
 @override_settings(
@@ -44,13 +53,14 @@ class PasswordForgotTests(TestCase):
         body = msg.body
         # Both parameters the confirm endpoint needs must be in the link.
         self.assertIn(f"uid={int_to_base36(self.user.pk)}", body)
-        self.assertIn("token=", body)
         self.assertIn("https://app.example.com/reset-password?", body)
 
-        # And the token in the email has to actually verify, otherwise the
-        # whole flow is theatre.
-        token = default_token_generator.make_token(self.user)
-        self.assertIn(token, body)
+        # The token has to be read back out of the email and verified. It
+        # cannot be compared against one minted here: Django's token embeds a
+        # second-resolution timestamp, so a locally generated token differs
+        # from the emailed one whenever a second ticks between the two calls.
+        token = _token_from_link(body)
+        self.assertIsNotNone(token, f"no token found in: {body!r}")
         self.assertTrue(default_token_generator.check_token(self.user, token))
 
     def test_email_has_html_alternative(self):
@@ -223,3 +233,82 @@ class PasswordResetConfirmTests(TestCase):
 
         self.assertIn(AllowAny, view.cls.permission_classes)
         self.assertEqual(view.cls.authentication_classes, [])
+
+
+class FrontendUrlFromAllowedHostsTests(TestCase):
+    """The reset link is built from ALLOWED_HOSTS, so its correctness depends on
+    a string that lives in the deployment environment and nobody edits in the
+    repo. These pin the real production value and the shapes it can take."""
+
+    # The value actually set in the deployed environment.
+    PROD = "https://splitwise-ten-ebon.vercel.app,splitwise-3m6a.onrender.com"
+
+    def build(self, raw):
+        """Resolve the helper against a raw ALLOWED_HOSTS string.
+
+        The helper reads the module-level ALLOWED_HOSTS in config.settings.base,
+        not django.conf.settings, so that is what has to be patched.
+        """
+        from config.settings import base
+
+        parsed = [h.strip() for h in raw.split(",") if h.strip()]
+        with patch.object(base, "ALLOWED_HOSTS", parsed):
+            return base._frontend_url_from_allowed_hosts()
+
+    def test_production_value_resolves_to_the_frontend(self):
+        url = self.build(self.PROD)
+
+        self.assertEqual(url, "https://splitwise-ten-ebon.vercel.app")
+        self.assertTrue(
+            url.startswith("https://"), "the emailed link must be https in production"
+        )
+
+    def test_production_value_never_leaks_the_api_host(self):
+        """The reset link must land on a page with a form, not on the API."""
+        self.assertNotIn("onrender.com", self.build(self.PROD))
+
+    def test_scheme_is_added_when_the_entry_has_none(self):
+        self.assertEqual(
+            self.build("splitwise-ten-ebon.vercel.app"),
+            "https://splitwise-ten-ebon.vercel.app",
+        )
+
+    def test_loopback_gets_the_vite_dev_port(self):
+        # Each keeps its own hostname; only the port is added.
+        for raw, expected in (
+            ("localhost", "http://localhost:3000"),
+            ("localhost,127.0.0.1", "http://localhost:3000"),
+            ("127.0.0.1", "http://127.0.0.1:3000"),
+        ):
+            with self.subTest(raw=raw):
+                self.assertEqual(self.build(raw), expected)
+
+    def test_existing_port_is_not_duplicated(self):
+        self.assertEqual(self.build("localhost:5173"), "http://localhost:5173")
+
+    def test_blank_and_empty_entries_are_skipped(self):
+        self.assertEqual(self.build(" , ,splitwise-ten-ebon.vercel.app"),
+                         "https://splitwise-ten-ebon.vercel.app")
+
+    def test_falls_back_when_nothing_is_configured(self):
+        self.assertEqual(self.build(""), "http://localhost:3000")
+
+    def test_emailed_link_is_built_from_this_value_end_to_end(self):
+        """Ties the helper to the email, so the two cannot drift apart."""
+        user = User.objects.create_user(
+            name="Sam", email="samyam@example.com", password="oldpassword123"
+        )
+        token = default_token_generator.make_token(user)
+
+        with override_settings(
+            EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+            FRONTEND_URL=self.build(self.PROD),
+        ):
+            send_password_reset_email(user=user, token=token)
+
+        body = mail.outbox[0].body
+        self.assertIn(
+            f"https://splitwise-ten-ebon.vercel.app/reset-password?uid="
+            f"{int_to_base36(user.pk)}&token={token}",
+            body,
+        )

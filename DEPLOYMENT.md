@@ -24,7 +24,7 @@ Set the settings module, then everything it reads:
 | --- | --- | --- |
 | `DJANGO_SETTINGS_MODULE` | yes | `config.settings.production` |
 | `SECRET_KEY` | yes | long random string |
-| `ALLOWED_HOSTS` | yes | comma-separated, e.g. `<api-host>` |
+| `ALLOWED_HOSTS` | yes | comma-separated; currently `https://splitwise-ten-ebon.vercel.app,splitwise-3m6a.onrender.com` |
 | `DATABASE_URL` | yes | Postgres; SSL is required |
 | `CORS_ALLOWED_ORIGINS` | yes | comma-separated Vercel origins — the CORS middleware is configured for credentials, so a missing entry blocks every request |
 | `DEFAULT_FROM_EMAIL` | yes | |
@@ -34,6 +34,26 @@ Set the settings module, then everything it reads:
 | `COOKIE_SECURE` / `COOKIE_SAMESITE` | no | default to `true` / `None` in production; only relax for a same-origin setup |
 | `SECURE_SSL_REDIRECT` | no | default `true` |
 | `SECURE_HSTS_SECONDS` | no | default `31536000` |
+
+### Password reset links
+
+There is no `FRONTEND_URL` variable. The emailed reset link is derived from
+`ALLOWED_HOSTS` by `_frontend_url_from_allowed_hosts()`, which takes the first
+non-empty entry and adds the scheme back — `https` unless the host is loopback,
+which gets `http` plus Vite's dev port.
+
+So the first entry of `ALLOWED_HOSTS` must be the **frontend** origin. Today
+that is the Vercel URL, which already carries a scheme and is passed through
+verbatim:
+
+```
+https://splitwise-ten-ebon.vercel.app/reset-password?uid=<b36>&token=<token>
+```
+
+If the entry order is ever swapped so the Render host comes first, reset emails
+will link to the API instead of the app. `FrontendUrlFromAllowedHostsTests`
+pins the current value, including a check that the API host never appears in
+the link.
 
 `DJANGO_SETTINGS_MODULE` is read by both `manage.py` and `config/wsgi.py`, so
 Render's `python manage.py migrate` and gunicorn load the same settings. If you
