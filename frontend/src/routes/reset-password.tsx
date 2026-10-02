@@ -21,10 +21,13 @@ import {
 import { useResetPasswordMutation } from "@/features/auth/api/usePasswordResetMutation";
 
 export const Route = createFileRoute("/reset-password")({
-  // Both parameters arrive from the emailed link. Coerced rather than declared,
-  // because a hand-edited, truncated or scanned link can send anything here and
-  // the page still has to render.
+  // The emailed link carries one opaque `reset` parameter shaped
+  // `<uid>.<token>`. Links already sitting in people's inboxes use separate
+  // `uid` and `token` parameters, so both shapes are still accepted. Coerced
+  // rather than declared, because a hand-edited, truncated or rewritten link
+  // can send anything here and the page still has to render.
   validateSearch: (search: Record<string, unknown>) => ({
+    reset: typeof search.reset === "string" ? search.reset : "",
     uid: typeof search.uid === "string" ? search.uid : "",
     token: typeof search.token === "string" ? search.token : "",
   }),
@@ -36,24 +39,38 @@ export const Route = createFileRoute("/reset-password")({
 });
 
 /**
- * Pull uid/token out of the query string, falling back to the fragment.
+ * Recover uid and token from whatever the link became in transit.
  *
- * Link scanners in corporate mail and some webmail clients rewrite links on
- * the way through, and the query string is the part they are most likely to
- * strip -- it never reaches the scanner's own tracking parameters intact. The
- * fragment is never sent to a server, so it survives that. Accepting either
- * costs nothing and covers the mangled cases.
+ * Three shapes, in order of preference:
+ *   1. `?reset=<uid>.<token>`     what the backend sends now -- a single
+ *                                  parameter, so there is no `&` for a
+ *                                  rewriting mail client to split on
+ *   2. `?uid=<uid>&token=<token>`  older links, still in people's inboxes
+ *   3. either shape in the fragment never sent to a server, so it survives
+ *                                  link scanners, which rewrite the query
+ *
+ * The credential splits on the FIRST dot: uid is base36 and the token is
+ * base36-hex, so neither can contain one, but splitting on every dot would be
+ * fragile if that ever changed.
  */
-function readResetParams(query: { uid: string; token: string }) {
-  if (query.uid && query.token) return query
-
+function readResetParams(search: {
+  reset: string;
+  uid: string;
+  token: string;
+}) {
   const fragment = window.location.hash.replace(/^#/, "")
-  if (!fragment) return query
+  const hash = fragment ? new URLSearchParams(fragment) : null
 
-  const fromHash = new URLSearchParams(fragment)
+  const combined = search.reset || hash?.get("reset") || ""
+  if (combined) {
+    const dot = combined.indexOf(".")
+    if (dot <= 0) return { uid: "", token: "" }
+    return { uid: combined.slice(0, dot), token: combined.slice(dot + 1) }
+  }
+
   return {
-    uid: query.uid || fromHash.get("uid") || "",
-    token: query.token || fromHash.get("token") || "",
+    uid: search.uid || hash?.get("uid") || "",
+    token: search.token || hash?.get("token") || "",
   }
 }
 
@@ -83,9 +100,9 @@ function ResetPasswordPage() {
   // submitted -- the server has nothing to verify against. Say so up front
   // rather than failing on an empty form.
   if (!uid || !token) {
-    const hasQuery = Boolean(search.uid || search.token)
+    const hasQuery = Boolean(search.reset || search.uid || search.token)
     const partial =
-      hasQuery && (search.uid || search.token) ? "part of the" : "the";
+      hasQuery ? "part of the" : "the";
 
     return (
       <main className="mx-auto flex min-h-screen items-center justify-center p-4">
@@ -125,6 +142,14 @@ function ResetPasswordPage() {
                   <dt className="inline font-semibold">query: </dt>
                   <dd className="inline">
                     {window.location.search.replace("?", "") || "(none)"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="inline font-semibold">reset: </dt>
+                  <dd className="inline">
+                    {search.reset
+                      ? `${search.reset.slice(0, 12)}...`
+                      : "(missing)"}
                   </dd>
                 </div>
                 <div>
