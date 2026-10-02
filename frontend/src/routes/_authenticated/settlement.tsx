@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { StatCard } from '@/components/StatCard'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -191,7 +192,7 @@ function SettlementPage() {
 
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          icon={<ArrowUpRight className="w-4 h-4" />}
+          icon={<ArrowUpRight className="w-5 h-5" />}
           label="You owe"
           value={totalToPay}
           tone="rose"
@@ -202,14 +203,14 @@ function SettlementPage() {
           }
         />
         <StatCard
-          icon={<ArrowDownLeft className="w-4 h-4" />}
+          icon={<ArrowDownLeft className="w-5 h-5" />}
           label="Owed to you"
           value={totalToReceive}
           tone="emerald"
           caption={totalToReceive > 0 ? 'Waiting on payments' : 'Nothing incoming'}
         />
         <StatCard
-          icon={<TrendingUp className="w-4 h-4" />}
+          icon={<TrendingUp className="w-5 h-5" />}
           label="Net position"
           value={Math.abs(net)}
           tone={net > 0 ? 'emerald' : net < 0 ? 'rose' : 'slate'}
@@ -399,49 +400,6 @@ function SettlementPage() {
   )
 }
 
-function StatCard({
-  icon,
-  label,
-  value,
-  caption,
-  tone,
-  signed = false,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: number
-  caption: string
-  tone: 'rose' | 'emerald' | 'slate'
-  signed?: boolean
-}) {
-  const tones = {
-    rose: { chip: 'bg-rose-50 text-rose-600', value: 'text-slate-900' },
-    emerald: { chip: 'bg-emerald-50 text-emerald-600', value: 'text-slate-900' },
-    slate: { chip: 'bg-slate-100 text-slate-500', value: 'text-slate-400' },
-  }[tone]
-
-  return (
-    <Card className="border-slate-100 shadow-sm rounded-2xl">
-      <CardContent className="p-5">
-        <div className="flex items-center gap-2.5 mb-2">
-          <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${tones.chip}`}>
-            {icon}
-          </span>
-          <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
-            {label}
-          </span>
-        </div>
-
-        <p className={`text-2xl font-extrabold tracking-tight ${tones.value}`}>
-          {signed && value > 0 ? <span className="text-slate-400">+</span> : null}$
-          {money(value)}
-        </p>
-
-        <p className="mt-1 text-xs font-medium text-slate-500">{caption}</p>
-      </CardContent>
-    </Card>
-  )
-}
 
 function BalanceRow({
   name,

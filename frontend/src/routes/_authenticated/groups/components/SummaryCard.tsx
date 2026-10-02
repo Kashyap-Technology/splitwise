@@ -1,39 +1,10 @@
 import type { ReactNode } from 'react'
 import { Card } from '@/components/ui/card'
+import { CARD_TONES, type CardTone } from '@/components/StatCard'
 
-type SummaryTone = 'blue' | 'amber' | 'emerald' | 'slate'
-
-// Each tone gets its own tinted gradient so the cards read as distinct
-// summaries at a glance instead of two identical grey panels.
-const TONES: Record<
-  SummaryTone,
-  { card: string; chip: string; glow: string; accent: string }
-> = {
-  blue: {
-    card: 'bg-gradient-to-br from-blue-50 via-white to-blue-100/70 ring-1 ring-blue-100',
-    chip: 'bg-blue-100/80 text-blue-700',
-    glow: 'text-blue-200/50',
-    accent: 'text-blue-600',
-  },
-  amber: {
-    card: 'bg-gradient-to-br from-amber-50 via-white to-orange-100/70 ring-1 ring-amber-100',
-    chip: 'bg-amber-100/80 text-amber-700',
-    glow: 'text-orange-200/60',
-    accent: 'text-amber-600',
-  },
-  emerald: {
-    card: 'bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70 ring-1 ring-emerald-100',
-    chip: 'bg-emerald-100/80 text-emerald-700',
-    glow: 'text-emerald-200/50',
-    accent: 'text-emerald-600',
-  },
-  slate: {
-    card: 'bg-gradient-to-br from-slate-100 via-white to-slate-200/70 ring-1 ring-slate-200',
-    chip: 'bg-slate-200/80 text-slate-700',
-    glow: 'text-slate-300/60',
-    accent: 'text-slate-600',
-  },
-}
+// The palette lives in components/StatCard so this card and the plain stat
+// cards on the other pages stay identical.
+type SummaryTone = CardTone
 
 export function SummaryCard({
   icon,
@@ -66,7 +37,7 @@ export function SummaryCard({
   })
   const [integerPart, decimalPart] = formatted.split('.')
 
-  const palette = TONES[tone]
+  const palette = CARD_TONES[tone]
 
   return (
     <Card

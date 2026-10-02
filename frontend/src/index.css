@@ -183,7 +183,9 @@
 .dark .text-slate-500 { color: var(--muted-foreground); }
 .dark .text-slate-400 { color: oklch(0.62 0 0); }
 .dark .text-slate-300 { color: oklch(0.55 0 0); }
-.dark .text-slate-300\/60 { color: oklch(0.55 0 0 / 0.6); }
+/* Only use is the slate tone's watermark, which is a light shape sitting on a
+   dark gradient -- dimming it would erase it. */
+.dark .text-slate-300\/60 { color: oklch(0.72 0 0 / 0.6); }
 
 /* Borders and dividers become subtle light lines on a dark surface.
 
@@ -274,6 +276,8 @@
 .dark .to-orange-100\/70 { --tw-gradient-to: oklch(0.31 0.09 55 / 0.55) var(--tw-gradient-to-position); }
 .dark .from-emerald-50 { --tw-gradient-from: oklch(0.32 0.07 163 / 0.55) var(--tw-gradient-from-position); }
 .dark .to-emerald-100\/70 { --tw-gradient-to: oklch(0.3 0.07 163 / 0.55) var(--tw-gradient-to-position); }
+.dark .from-rose-50 { --tw-gradient-from: oklch(0.33 0.08 20 / 0.55) var(--tw-gradient-from-position); }
+.dark .to-rose-100\/70 { --tw-gradient-to: oklch(0.31 0.09 20 / 0.55) var(--tw-gradient-to-position); }
 .dark .from-slate-100 { --tw-gradient-from: var(--muted) var(--tw-gradient-from-position); }
 .dark .to-slate-200\/70 { --tw-gradient-to: color-mix(in oklch, var(--muted) 70%, var(--card)) var(--tw-gradient-to-position); }
 .dark .to-slate-200 { --tw-gradient-to: color-mix(in oklch, var(--muted) 70%, var(--card)) var(--tw-gradient-to-position); }
@@ -331,7 +335,8 @@
 .dark .border-blue-200 { border-color: oklch(1 0 0 / 12%); }
 .dark .ring-blue-100,
 .dark .ring-amber-100,
-.dark .ring-emerald-100 { --tw-ring-color: oklch(1 0 0 / 12%); }
+.dark .ring-emerald-100,
+.dark .ring-rose-100 { --tw-ring-color: oklch(1 0 0 / 12%); }
 
 /* --------------------------------------------------------------------------
    Gray
