@@ -25,6 +25,8 @@ import { compressImage } from "@/lib/compressImage"
 import { useAuth } from "@/features/auth/hooks/useAuth" 
 import { useUserDeleteMutation, useUserUpdateMutation } from "@/features/user/api/useUserMutation"
 import { DataExportCard } from "@/features/user/components/DataExportCard"
+import { SecurityCard } from "@/features/user/components/SecurityCard"
+import { CARD_TONES } from "@/components/StatCard"
 
 export const Route = createFileRoute("/_authenticated/me")({
   component: AccountProfilePage,
@@ -167,8 +169,12 @@ function AccountProfilePage() {
         >
           {/* Left Column: Profile Card & Avatar */}
           <div className="space-y-6">
-            <Card className="border-slate-200/80 shadow-sm overflow-hidden">
-              <CardContent className="pt-6 flex flex-col items-center text-center">
+            {/* Same tinted gradient as the stat cards elsewhere, so the profile
+                reads as part of the same system rather than a plain panel. */}
+            <Card
+              className={`border-none shadow-sm overflow-hidden relative ${CARD_TONES.blue.card}`}
+            >
+              <CardContent className="pt-6 flex flex-col items-center text-center relative">
                 
                 {/* Avatar Upload Container */}
                 <Controller
@@ -290,14 +296,14 @@ function AccountProfilePage() {
 
           {/* Right Column: Personal Information Inputs */}
           <div className="md:col-span-2 space-y-6">
-            <Card className="border-slate-200/80 shadow-sm">
+            <Card className="border-slate-100 shadow-sm">
               <CardContent className="p-6 space-y-6">
-                
+
                 {/* Section Title Header */}
-                <div className="flex items-center justify-between border-b pb-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                   <div>
                     <h3 className="text-base font-semibold text-slate-900">Personal Information</h3>
-                    <p className="text-xs text-muted-foreground">Directly corresponds to your Splitwise account profile endpoint</p>
+                    <p className="text-xs text-muted-foreground">Your name and how we reach you.</p>
                   </div>
                 </div>
 
@@ -354,14 +360,12 @@ function AccountProfilePage() {
                     name="phone"
                     render={({ field, fieldState }) => (
                       <Field data-invalid={!!fieldState.error}>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <FieldLabel className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                            Mobile Phone
-                          </FieldLabel>
-                          <span className="text-xs text-blue-600 font-medium">
-                            2FA Enabled
-                          </span>
-                        </div>
+                        {/* Was a "2FA Enabled" badge here. There is no two-factor
+                            auth, TOTP or OTP anywhere in the backend, so it
+                            claimed a security control that does not exist. */}
+                        <FieldLabel className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                          Mobile Phone
+                        </FieldLabel>
                         <FieldContent>
                           <Input 
                             className="bg-slate-50/50" 
@@ -379,6 +383,10 @@ function AccountProfilePage() {
             </Card>
           </div>
         </form>
+
+        {/* Outside the profile <form>: this card has its own form element, and
+            nesting forms is invalid and silently breaks submission. */}
+        <SecurityCard />
 
         <DataExportCard />
       </div>
