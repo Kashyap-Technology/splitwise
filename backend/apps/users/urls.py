@@ -3,6 +3,7 @@ from django.urls import path
 from apps.users.views import (
     UserCreateAPi,
     UserDeleteApi,
+    UserExportApi,
     UserListApi,
     UserLoginAPi,
     UserLogoutApi,
@@ -22,4 +23,5 @@ urlpatterns = [
     path("list/", UserListApi.as_view(), name="user-list"),
     path("search/", UserSearchApi.as_view(), name="user-search"),
     path("me/", UserMeApi.as_view(), name="me"),
+    path("export/", UserExportApi.as_view(), name="export"),
 ]

@@ -24,6 +24,7 @@ import {
 import { compressImage } from "@/lib/compressImage"
 import { useAuth } from "@/features/auth/hooks/useAuth" 
 import { useUserDeleteMutation, useUserUpdateMutation } from "@/features/user/api/useUserMutation"
+import { DataExportCard } from "@/features/user/components/DataExportCard"
 
 export const Route = createFileRoute("/_authenticated/me")({
   component: AccountProfilePage,
@@ -379,6 +380,7 @@ function AccountProfilePage() {
           </div>
         </form>
 
+        <DataExportCard />
       </div>
     </div>
   )

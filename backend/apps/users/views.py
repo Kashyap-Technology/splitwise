@@ -1,15 +1,17 @@
+import json
 import logging
 
 from django.contrib.auth.password_validation import validate_password
+from django.http import HttpResponse
 from rest_framework import serializers, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework.generics import CreateAPIView
 
 from apps.core.api.responses import api_success
 from apps.core.models import AuditLog
 from apps.core.services import create_audit_log, get_storj_public_url
+from apps.users.export import build_export
 from apps.users.selectors import list_user, search_users
 from apps.users.services import (
     create_user,
@@ -200,6 +202,29 @@ class UserMeApi(APIView):
             data=self.OutputSerializer(request.user).data,
             message="Currently LoggedIn User",
             status_code=status.HTTP_200_OK,
+        )
+
+
+class UserExportApi(APIView):
+    """Everything the requester owns, as JSON.
+
+    JSON is the only format offered. A CSV bundle was built and dropped: an
+    expense has many payers and many participants, so a flat column has to
+    squash them into one cell, which reads in Excel but cannot be parsed back.
+    For a human-readable copy there is a printable report at /report, which the
+    browser can save as PDF without any server-side rendering.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        data = build_export(user=request.user)
+
+        # json.dumps rather than DRF's renderer: the payload is already plain
+        # data and this keeps the file byte-identical to what build_export made.
+        return HttpResponse(
+            json.dumps(data, indent=2, ensure_ascii=False),
+            content_type="application/json",
         )
 
 
