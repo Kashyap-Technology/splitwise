@@ -17,6 +17,8 @@ User = get_user_model()
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
     FRONTEND_URL="https://app.example.com",
 )
+# FRONTEND_URL is derived from ALLOWED_HOSTS at import time, so it is overridden
+# here rather than configured through a separate environment variable.
 class PasswordForgotTests(TestCase):
     """POST /api/users/password/forgot/"""
 
