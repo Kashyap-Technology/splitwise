@@ -93,6 +93,17 @@ ANYMAIL = {
     "BREVO_API_KEY": config("BREVO_API_KEY"),
 }
 
+# Where the password-reset link points. The reset link has to land on the SPA,
+# not on an API path: the user needs a form to type a new password into, and the
+# token has to survive the page load in the URL.
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
+
+# Django's own default is 3 days. Stated explicitly because a reset link that
+# outlives a reasonable window is a liability, and this is the knob to turn.
+PASSWORD_RESET_TIMEOUT = config(
+    "PASSWORD_RESET_TIMEOUT", default=60 * 60 * 24, cast=int
+)
+
 
 STORJ_ACCESS_KEY = config("STORJ_ACCESS_KEY")
 STORJ_SECRET_KEY = config("STORJ_SECRET_KEY")
