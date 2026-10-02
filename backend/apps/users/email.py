@@ -21,11 +21,20 @@ def send_password_reset_email(*, user, token):
         f"?{urlencode({'uid': int_to_base36(user.pk), 'token': token})}"
     )
 
-    # Everything interpolated here reaches an inbox as HTML, so it is escaped.
-    # `name` is user-supplied and `token` is attacker-influenced in the sense
-    # that a bad token can be posted at us; neither is markup.
+    # `name` is user-supplied free text and genuinely needs escaping.
     name = escape(user.name)
-    safe_url = escape(reset_url)
+
+    # The URL must NOT be escaped. `escape()` rewrites the `&` that separates
+    # the query parameters to `&amp;`, and plenty of mail clients hand that
+    # through to the browser un-decoded. The browser then parses
+    # `?uid=1&amp;token=abc` as a single `uid` of "1&amp;token=abc" with no
+    # `token` at all, and the reset page reports a missing token for a link that
+    # looks perfectly fine. Escaping it here is what caused that.
+    #
+    # There is nothing to escape: the URL is FRONTEND_URL from config plus
+    # `int_to_base36(user.pk)` and a Django token -- all base36, hex and
+    # hyphens. No angle brackets, no quotes, so no markup to escape either.
+    safe_url = reset_url
 
     # "expires in 1440 minutes" is technically right and reads like a bug.
     seconds = settings.PASSWORD_RESET_TIMEOUT
