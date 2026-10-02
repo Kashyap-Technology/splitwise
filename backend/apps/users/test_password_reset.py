@@ -1,4 +1,5 @@
 import re
+import urllib.parse
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -17,9 +18,17 @@ User = get_user_model()
 
 
 def _token_from_link(body):
-    """Pull the token back out of an emailed reset link."""
-    match = re.search(r"[?&]token=([A-Za-z0-9]+-[A-Za-z0-9]+)", body)
-    return match.group(1) if match else None
+    """Pull the token back out of an emailed reset link.
+
+    Handles both link shapes: the current single `reset=<uid>.<token>`
+    parameter, and older `?uid=..&token=..` links.
+    """
+    combined = re.search(r"[?&]reset=([A-Za-z0-9]+)\.([A-Za-z0-9]+-[A-Za-z0-9]+)", body)
+    if combined:
+        return combined.group(2)
+
+    legacy = re.search(r"[?&]token=([A-Za-z0-9]+-[A-Za-z0-9]+)", body)
+    return legacy.group(1) if legacy else None
 
 
 @override_settings(
@@ -51,9 +60,8 @@ class PasswordForgotTests(TestCase):
         self.assertEqual(msg.to, ["samyam@example.com"])
 
         body = msg.body
-        # Both parameters the confirm endpoint needs must be in the link.
-        self.assertIn(f"uid={int_to_base36(self.user.pk)}", body)
         self.assertIn("https://app.example.com/reset-password?", body)
+        self.assertIn("?reset=", body)
 
         # The token has to be read back out of the email and verified. It
         # cannot be compared against one minted here: Django's token embeds a
@@ -76,11 +84,21 @@ class PasswordForgotTests(TestCase):
 
         url = href.group(1)
         self.assertNotIn("&amp;", url, "query separator was HTML-escaped")
-        self.assertIn("?uid=", url)
-        # Both parameters must be separately parseable, which is the whole point.
+        self.assertIn("?reset=", url)
+
+        # One parameter. There must be no `&` in the link at all: a rewriting
+        # mail client is what ate `uid` out of the previous two-parameter form,
+        # and it cannot mangle a query with nothing to split.
         query = url.split("?", 1)[1]
-        self.assertEqual(
-            sorted(p.split("=")[0] for p in query.split("&")), ["token", "uid"]
+        self.assertNotIn("&", query, "link still has more than one parameter")
+
+        # And the single credential must round-trip back to uid + token.
+        credential = urllib.parse.parse_qs(query)["reset"][0]
+        uid, _, token = credential.partition(".")
+        self.assertEqual(uid, int_to_base36(self.user.pk))
+        self.assertTrue(
+            default_token_generator.check_token(self.user, token),
+            "credential did not split back into a valid uid and token",
         )
 
     def test_url_is_unescaped_but_the_name_is_still_escaped(self):
@@ -349,7 +367,7 @@ class FrontendUrlFromAllowedHostsTests(TestCase):
 
         body = mail.outbox[0].body
         self.assertIn(
-            f"https://splitwise-ten-ebon.vercel.app/reset-password?uid="
-            f"{int_to_base36(user.pk)}&token={token}",
+            "https://splitwise-ten-ebon.vercel.app/reset-password?reset="
+            f"{int_to_base36(user.pk)}.{token}",
             body,
         )

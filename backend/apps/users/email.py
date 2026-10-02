@@ -16,24 +16,28 @@ def send_password_reset_email(*, user, token):
     it stops verifying the instant the password changes -- no server-side row
     to delete and no second source of truth to keep in sync.
     """
+    # One query parameter, not two.
+    #
+    # The link used to be `?uid=<b36>&token=<token>`. Observed arriving in the
+    # browser as `?uid=&token=dftelv-...` -- the first parameter's value eaten,
+    # the last one intact. `int_to_base36` never returns an empty string for any
+    # pk, so the backend did not send it that way; something between the mail
+    # server and the browser rewrote the URL and mishandled the `&`.
+    #
+    # Nothing can split a URL that has nothing to split. `<uid>.<token>` is a
+    # single opaque value: no `&`, so no second parameter to lose, and both
+    # halves are base36/hex so `.` cannot occur inside either one.
+    credential = f"{int_to_base36(user.pk)}.{token}"
     reset_url = (
         f"{settings.FRONTEND_URL.rstrip('/')}/reset-password"
-        f"?{urlencode({'uid': int_to_base36(user.pk), 'token': token})}"
+        f"?{urlencode({'reset': credential})}"
     )
 
-    # `name` is user-supplied free text and genuinely needs escaping.
+    # `name` is user-supplied free text and genuinely needs escaping. The URL
+    # must not be: `escape()` rewrites `&` to `&amp;`, and mail clients that
+    # pass that through un-decoded deliver a mangled link. There is nothing to
+    # escape here anyway -- the credential is base36, hex and one hyphen.
     name = escape(user.name)
-
-    # The URL must NOT be escaped. `escape()` rewrites the `&` that separates
-    # the query parameters to `&amp;`, and plenty of mail clients hand that
-    # through to the browser un-decoded. The browser then parses
-    # `?uid=1&amp;token=abc` as a single `uid` of "1&amp;token=abc" with no
-    # `token` at all, and the reset page reports a missing token for a link that
-    # looks perfectly fine. Escaping it here is what caused that.
-    #
-    # There is nothing to escape: the URL is FRONTEND_URL from config plus
-    # `int_to_base36(user.pk)` and a Django token -- all base36, hex and
-    # hyphens. No angle brackets, no quotes, so no markup to escape either.
     safe_url = reset_url
 
     # "expires in 1440 minutes" is technically right and reads like a bug.
