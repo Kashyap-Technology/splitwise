@@ -1,5 +1,5 @@
 import { Controller, useForm } from "react-hook-form";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import {
   Card,
   CardHeader,
@@ -16,7 +16,6 @@ import { loginSchema, LoginFormValues } from "../schemas/loginSchema";
 import { useLoginMutation } from "../api/useLoginMutation";
 
 export function LoginForm() {
-  const navigate = useNavigate();
   const { mutate, isPending, error } = useLoginMutation();
 
   //setup React Hook Form

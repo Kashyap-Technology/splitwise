@@ -6,12 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/_authenticated")({
-  beforeLoad: ({ context, location }) => {
+  // No `redirect` search param: nothing ever read it. Sending the user to a
+  // bare /login also keeps the URL clean after a session expires.
+  beforeLoad: ({ context }) => {
     if (!context.auth?.isAuthenticated) {
-      throw redirect({
-        to: "/login",
-        search: { redirect: location.href },
-      });
+      throw redirect({ to: "/login" });
     }
   },
   component: AuthenticatedLayout,

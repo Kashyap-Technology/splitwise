@@ -2,12 +2,11 @@ import { SignUpForm } from "@/features/auth/components/SignUpForm";
 import { createFileRoute,redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/signup")({
-   beforeLoad: ({ context, location }) => {
+  // See the note in login.tsx: the `redirect` param this used to set was never
+  // read by anything.
+  beforeLoad: ({ context }) => {
     if (context.auth?.isAuthenticated) {
-      throw redirect({
-        to: "/dashboard",
-        search: { redirect: location.href },
-      });
+      throw redirect({ to: "/dashboard" });
     }
   },
   component: RouteComponent,
