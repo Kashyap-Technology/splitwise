@@ -350,3 +350,63 @@
 .dark .text-gray-500 { color: var(--muted-foreground); }
 .dark .text-gray-400 { color: oklch(0.62 0 0); }
 .dark .border-gray-300 { border-color: oklch(1 0 0 / 22%); }
+
+/* --------------------------------------------------------------------------
+   State variants
+
+   Tailwind emits `hover:bg-slate-50` as a class of its own, named
+   `.hover\:bg-slate-50:hover`. Overriding `bg-slate-50` does nothing for it, so
+   every interactive row in the app kept its light-mode value and hovering a
+   list item in dark mode painted it near-white.
+
+   These repeat the base rules under each state prefix. Same tokens, same
+   values; the only thing that changes is the selector.
+   -------------------------------------------------------------------------- */
+.dark .hover\:bg-slate-50:hover { background-color: var(--muted); }
+.dark .hover\:bg-slate-50\/60:hover,
+.dark .hover\:bg-slate-50\/50:hover { background-color: var(--accent); }
+.dark .hover\:bg-slate-100:hover,
+.dark .focus\:bg-slate-100:focus { background-color: var(--accent); }
+.dark .hover\:bg-slate-200:hover { background-color: var(--accent); }
+.dark .hover\:bg-slate-200\/50:hover { background-color: color-mix(in oklch, var(--muted) 50%, transparent); }
+.dark .hover\:bg-gray-100:hover { background-color: var(--accent); }
+.dark .hover\:bg-red-50:hover,
+.dark .focus\:bg-rose-50:focus,
+.dark .hover\:bg-rose-50:hover { background-color: oklch(0.31 0.09 20 / 0.5); }
+.dark .hover\:bg-blue-50:hover { background-color: oklch(0.28 0.07 256 / 0.55); }
+.dark .hover\:bg-blue-100:hover { background-color: oklch(0.33 0.09 256 / 0.55); }
+.dark .hover\:text-slate-900:hover,
+.dark .focus\:text-slate-900:focus { color: var(--foreground); }
+.dark .hover\:text-slate-700:hover { color: var(--foreground); }
+.dark .hover\:text-slate-600:hover { color: var(--card-foreground); }
+.dark .hover\:text-red-600:hover,
+.dark .hover\:text-red-700:hover,
+.dark .hover\:text-rose-700:hover,
+.dark .focus\:text-rose-700:focus { color: oklch(0.73 0.17 25); }
+.dark .hover\:text-blue-600:hover { color: oklch(0.72 0.15 256); }
+.dark .hover\:text-blue-700:hover { color: oklch(0.78 0.13 256); }
+.dark .hover\:border-slate-300:hover { border-color: oklch(1 0 0 / 22%); }
+.dark .focus\:border-blue-500:focus { border-color: oklch(0.72 0.15 256 / 0.6); }
+.dark .group-hover\:text-blue-600:is(:where(.group):hover *) { color: oklch(0.72 0.15 256); }
+.dark .group-hover\:border-blue-500:is(:where(.group):hover *) { border-color: oklch(0.72 0.15 256 / 0.6); }
+/* Member-picker rows hovered to white, which is a full white flash on a dark
+   surface rather than the subtle lift every other row gets. */
+.dark .hover\:bg-white:hover { background-color: var(--accent); }
+
+/* -------------------------------------------------------------------------- */
+
+/* --------------------------------------------------------------------------
+   Stragglers
+
+   Hairlines and rings at a 100/200 weight are near-white, so they read as a
+   bright outline once the surface behind them is dark. These are the same
+   10-12% white the other borders use.
+   -------------------------------------------------------------------------- */
+.dark .border-slate-100\/70 { border-color: oklch(1 0 0 / 10%); }
+.dark .border-emerald-100 { border-color: oklch(1 0 0 / 12%); }
+.dark .border-amber-100 { border-color: oklch(1 0 0 / 12%); }
+.dark .focus\:ring-blue-100:focus { --tw-ring-color: oklch(1 0 0 / 12%); }
+/* The status dot's ring is meant to match the badge it sits on, which is
+   bg-[#F4F5F9] and already repointed at --background. */
+.dark .ring-\[\#F4F5F9\] { --tw-ring-color: var(--background); }
+/* A focus ring is meant to be conspicuous, so blue-500 stays. */
