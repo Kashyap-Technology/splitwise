@@ -9,6 +9,34 @@ SECRET_KEY = config("SECRET_KEY")
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 
 
+def _frontend_url_from_allowed_hosts():
+    """Build a browsable origin from ALLOWED_HOSTS.
+
+    ALLOWED_HOSTS is hostnames with no scheme, but a password-reset link has to
+    be a full URL the user can click. This adds the scheme back: https for
+    anything that isn't a loopback address, http for loopback.
+
+    An entry that already carries a scheme is passed through untouched, so a
+    deployment storing a full URL keeps working.
+
+    A loopback host gets the Vite dev port appended when it carries none,
+    because the SPA is served on :3000 in development and a link to
+    `http://localhost/reset-password` would miss it and 404.
+    """
+    for host in ALLOWED_HOSTS:
+        host = (host or "").strip()
+        if not host:
+            continue
+        if "://" in host:
+            return host.rstrip("/")
+        if host.startswith(("localhost", "127.0.0.1", "[::1]")):
+            if ":" not in host:
+                host = f"{host}:3000"
+            return f"http://{host}"
+        return f"https://{host}"
+    return "http://localhost:3000"
+
+
 # Application definition
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -93,10 +121,10 @@ ANYMAIL = {
     "BREVO_API_KEY": config("BREVO_API_KEY"),
 }
 
-# Where the password-reset link points. The reset link has to land on the SPA,
-# not on an API path: the user needs a form to type a new password into, and the
-# token has to survive the page load in the URL.
-FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
+# Where the password-reset link points. Derived from ALLOWED_HOSTS so no extra
+# environment variable is needed -- the reset link has to land on a page with a
+# form on it, and ALLOWED_HOSTS already names the deployment.
+FRONTEND_URL = _frontend_url_from_allowed_hosts()
 
 # Django's own default is 3 days. Stated explicitly because a reset link that
 # outlives a reasonable window is a liability, and this is the knob to turn.
