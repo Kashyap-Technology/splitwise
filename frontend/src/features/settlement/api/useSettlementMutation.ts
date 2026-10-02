@@ -1,5 +1,6 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from "@tanstack/react-query"
 import { api } from '@/api/client'
+import { useMutationWithToast } from '@/lib/useMutationWithToast'
 import {
   SettlementCreate,
   SettlementCreateResponse,
@@ -16,7 +17,8 @@ async function settlementCreateApi(groupId: number, data: SettlementCreate) {
 export function useSettlementCreateMutation(groupId: number) {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useMutationWithToast({
+    success: 'Settlement recorded',
     mutationFn: (data: SettlementCreate) => settlementCreateApi(groupId, data),
     onSuccess: () => {
       // A settlement changes every derived balance, and the group detail query

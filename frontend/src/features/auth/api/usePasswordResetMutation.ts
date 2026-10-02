@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+;
 
 import { api } from "@/api/client";
 import type {
@@ -6,6 +6,7 @@ import type {
   ResetPasswordValues,
 } from "../schemas/passwordResetSchema";
 
+import { useMutationWithToast } from "@/lib/useMutationWithToast"
 async function forgotPasswordApi(values: ForgotPasswordValues) {
   const response = await api.post("/users/password/forgot/", values);
   return response.data as { message: string };
@@ -30,9 +31,15 @@ async function resetPasswordApi(values: ResetPasswordValues & {
  * account exists". The UI is worded to match.
  */
 export function useForgotPasswordMutation() {
-  return useMutation({ mutationFn: forgotPasswordApi });
+  return useMutationWithToast({
+    // Deliberately does not confirm the account exists -- the backend answers
+    // identically either way, and saying "we sent you a link" would leak.
+    success: 'Check your inbox',
+    description: 'If an account matches that email, a reset link is on its way.',
+    mutationFn: forgotPasswordApi,
+  });
 }
 
 export function useResetPasswordMutation() {
-  return useMutation({ mutationFn: resetPasswordApi });
+  return useMutationWithToast({ success: 'Password reset', mutationFn: resetPasswordApi });
 }

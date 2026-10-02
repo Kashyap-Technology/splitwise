@@ -1,6 +1,7 @@
 // src/features/auth/hooks/useLogoutMutation.ts
-import { api } from '@/api/client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/api/client'
+import { useMutationWithToast } from '@/lib/useMutationWithToast';
+import { useQueryClient } from "@tanstack/react-query";
 
 async function logoutApi() {
   const response = await api.post('/users/logout/');
@@ -10,7 +11,8 @@ async function logoutApi() {
 export function useLogoutMutation() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutationWithToast({
+    success: 'Signed out',
     mutationFn: logoutApi,
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['me'] });

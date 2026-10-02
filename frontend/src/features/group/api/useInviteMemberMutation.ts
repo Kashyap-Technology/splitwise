@@ -1,5 +1,6 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from "@tanstack/react-query"
 import {api} from "@/api/client"
+import { useMutationWithToast } from "@/lib/useMutationWithToast"
 
 interface InviteMemberPayload {
   groupId: number | string
@@ -9,7 +10,8 @@ interface InviteMemberPayload {
 export function useInviteMemberMutation() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useMutationWithToast({
+    success: 'Invitation sent',
     mutationFn: async ({ groupId, userId }: InviteMemberPayload) => {
       const response = await api.post(`/groups/${groupId}/invite/`, {
         receiver_id: userId,

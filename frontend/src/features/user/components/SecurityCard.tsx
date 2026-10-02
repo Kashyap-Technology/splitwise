@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "@tanstack/react-router";
-import { Check, KeyRound, ShieldCheck } from "lucide-react";
+import { KeyRound, ShieldCheck } from "lucide-react";
 import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -37,8 +36,7 @@ type Values = z.infer<typeof schema>;
  * the user signed out.
  */
 export function SecurityCard() {
-  const { mutate, isPending, error, isSuccess } = usePasswordChangeMutation();
-  const [done, setDone] = useState(false);
+  const { mutate, isPending, error } = usePasswordChangeMutation();
 
   const {
     control,
@@ -52,11 +50,9 @@ export function SecurityCard() {
 
   const onSubmit = (values: Values) => {
     mutate(values, {
-      onSuccess: () => {
-        setDone(true);
-        // Clear the fields so the old password is not left sitting in the DOM.
-        reset();
-      },
+      // Clear the fields so the old password is not left sitting in the DOM.
+      // Success is announced by the toast the mutation raises.
+      onSuccess: () => reset(),
     });
   };
 
@@ -86,13 +82,6 @@ export function SecurityCard() {
             Forgot it?
           </Button>
         </div>
-
-        {isSuccess && done && (
-          <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-sm text-emerald-700 flex items-start gap-2">
-            <Check className="h-4 w-4 mt-0.5 shrink-0" />
-            <span>Password updated. Use it next time you sign in.</span>
-          </div>
-        )}
 
         {error && (
           <div className="rounded-md bg-red-50 p-3 text-center text-xs font-medium text-red-600 border border-red-200">

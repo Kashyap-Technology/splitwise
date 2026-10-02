@@ -1,6 +1,7 @@
-import { useMutation } from "@tanstack/react-query";
+;
 
 import { api } from "@/api/client";
+import { useMutationWithToast } from "@/lib/useMutationWithToast"
 
 export type PasswordChangeValues = {
   oldPassword: string;
@@ -22,5 +23,6 @@ async function passwordChangeApi(values: PasswordChangeValues) {
  * -- it exists so the form can catch a mismatch without a round trip.
  */
 export function usePasswordChangeMutation() {
-  return useMutation({ mutationFn: passwordChangeApi });
+  return useMutationWithToast({
+    success: 'Password updated', mutationFn: passwordChangeApi });
 }

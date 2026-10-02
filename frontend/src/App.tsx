@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { RouterProvider, useRouter } from '@tanstack/react-router'
 import { router } from './router'
 import { useAuth } from '@/features/auth/hooks/useAuth'
+import { ToastProvider } from '@/components/Toast'
 
 function InnerApp() {
   const auth = useAuth()
@@ -22,7 +23,13 @@ function InnerApp() {
     )
   }
 
-  return <RouterProvider router={router} context={{ auth }} />
+  // ToastProvider wraps the router so auth and data hooks can raise toasts
+  // from anywhere in the tree, including route guards.
+  return (
+    <ToastProvider>
+      <RouterProvider router={router} context={{ auth }} />
+    </ToastProvider>
+  )
 }
 
 export default function App() {

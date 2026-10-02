@@ -1,5 +1,6 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from "@tanstack/react-query"
 import { api } from '@/api/client'
+import { useMutationWithToast } from '@/lib/useMutationWithToast'
 import { CreateExpenseInput } from '../schemas/expenseSchema'
 import { ExpenseResponse } from '../types/expense.types'
 
@@ -27,7 +28,8 @@ const updateExpenseApi = async ({
 export function useCreateExpenseMutation() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useMutationWithToast({
+    success: 'Expense added',
     mutationFn: createExpenseApi,
     onMutate: async (variables) => {
       // Cancel both keys: the expense list and the group detail that embeds it.
@@ -104,7 +106,8 @@ export function useCreateExpenseMutation() {
 export function useUpdateExpenseMutation() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useMutationWithToast({
+    success: 'Expense updated',
     mutationFn: updateExpenseApi,
     onMutate: async () => {
       // Every view that shows an expense or a derived balance has to be
@@ -140,7 +143,8 @@ const createCategoryApi = async ({ name, icon }: CreateCategoryParams) => {
 export function useCreateCategoryMutation() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useMutationWithToast({
+    success: 'Category created',
     mutationFn: createCategoryApi,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['categories'] })
@@ -156,7 +160,8 @@ const deleteExpenseApi = async (expenseId: string | number) => {
 export function useDeleteExpenseMutation() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useMutationWithToast({
+    success: 'Expense deleted',
     mutationFn: deleteExpenseApi,
     // Drop the row immediately so the list reacts immediately; every cache is
     // invalidated on settle anyway because balances are recalculated.

@@ -1,6 +1,7 @@
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from '@tanstack/react-router'
 import { api } from '@/api/client'
+import { useMutationWithToast } from '@/lib/useMutationWithToast'
 import { GroupCreateResponse, UserGroupResponse } from "../types/group.types";
 
 async function groupCreateApi(formData: FormData) {
@@ -27,7 +28,8 @@ export function useGroupMutation() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useMutationWithToast({
+    success: 'Group created',
     mutationFn: groupCreateApi,
     onMutate: async (formData) => {
       await queryClient.cancelQueries({ queryKey: ['groups'] })
@@ -65,7 +67,8 @@ export function useGroupMutation() {
 export function useGroupUpdateMutation(groupId: string | number) {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useMutationWithToast({
+    success: 'Group updated',
     mutationFn: (formData: FormData) => groupUpdateApi(groupId, formData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group', String(groupId)] })
@@ -84,7 +87,8 @@ export function useGroupDeleteMutation(groupId: string | number) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  return useMutation({
+  return useMutationWithToast({
+    success: 'Group deleted',
     mutationFn: () => groupDeleteApi(groupId),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['groups'] })
@@ -119,7 +123,8 @@ export function useGroupDeleteMutation(groupId: string | number) {
 export function useGroupRemoveMemberMutation(groupId: string | number) {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useMutationWithToast({
+    success: 'Member removed',
     mutationFn: (userId: string | number) => removeMemberApi(groupId, userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group', String(groupId)] })
