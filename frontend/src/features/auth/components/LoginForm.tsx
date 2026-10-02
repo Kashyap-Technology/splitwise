@@ -81,10 +81,19 @@ export function LoginForm() {
             name="password"
             render={({ field, fieldState }) => (
               <Field data-invalid={!!fieldState.error}>
-                <FieldLabel>Password</FieldLabel>
+                <div className="flex items-center justify-between">
+                  <FieldLabel>Password</FieldLabel>
+                  <Link
+                    to="/forgot-password"
+                    className="text-xs font-medium text-blue-600 hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 <Input
                   placeholder="••••••••"
                   type="password"
+                  autoComplete="current-password"
                   {...field}
                   disabled={isPending}
                 />
@@ -93,12 +102,9 @@ export function LoginForm() {
             )}
           />
 
-          {/* remember me and forgot password */}
-
           <Button
             type="submit"
             className="w-full cursor-pointer"
-            onClick={() => onSubmit}
             disabled={isPending}
           >
             {isPending ? "Signing in ..." : "Sign In"}
