@@ -9,12 +9,13 @@ import { LoginForm } from "@/features/auth/components/LoginForm";
 import { createFileRoute,redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/login")({
-  beforeLoad: ({ context, location }) => {
+  // `location` is no longer used here. It was only feeding a `redirect` search
+  // param that nothing in the app ever read, so the URL ended up carrying
+  // `?redirect=%2Flogin` for no benefit -- and it is what made the post-login
+  // bounce look like a half-finished navigation.
+  beforeLoad: ({ context }) => {
     if (context.auth?.isAuthenticated) {
-      throw redirect({
-        to: "/dashboard",
-        search: { redirect: location.href },
-      });
+      throw redirect({ to: "/dashboard" });
     }
   },
   component: RouteComponent,
