@@ -433,7 +433,7 @@ function ExpensesPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <Card className="p-12 text-center rounded-2xl border-0 shadow-sm bg-white">
+        <Card className="p-12 text-center rounded-2xl border-slate-100 shadow-sm bg-white">
           <Search className="w-10 h-10 mx-auto mb-3 text-slate-300" />
           <p className="text-lg font-semibold text-slate-700 mb-1">
             {expenses.length === 0 ? 'No expenses yet' : 'No matching expenses'}
@@ -589,7 +589,7 @@ function StatCard({
   const accent = tone === 'emerald' ? 'text-emerald-600' : 'text-slate-900'
 
   return (
-    <Card className="rounded-2xl border-0 shadow-sm bg-white p-5">
+    <Card className="rounded-2xl border-slate-100 shadow-sm bg-white p-5">
       <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
         {label}
       </p>
@@ -683,7 +683,7 @@ function ExpenseRow({
           onOpen()
         }
       }}
-      className="rounded-2xl border-0 shadow-sm bg-white hover:shadow-md transition-shadow cursor-pointer"
+      className="rounded-2xl border-slate-100 shadow-sm bg-white hover:shadow-md transition-shadow cursor-pointer"
     >
       <div className="p-4 flex items-center gap-4">
         <div className={`p-3 rounded-2xl shrink-0 ${box}`}>

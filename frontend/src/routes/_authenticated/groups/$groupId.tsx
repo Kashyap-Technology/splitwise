@@ -711,7 +711,7 @@ function GroupDetailComponent() {
             {/* EXPENSES TAB */}
             <TabsContent value="expenses" className="mt-6 space-y-4">
               {expenses.length === 0 ? (
-                <Card className="p-10 text-center text-slate-500 rounded-2xl border-0 shadow-sm bg-white">
+                <Card className="p-10 text-center text-slate-500 rounded-2xl border-slate-100 shadow-sm bg-white">
                   <Receipt className="w-10 h-10 mx-auto mb-3 text-slate-300" />
                   <p className="text-lg font-semibold text-slate-700 mb-1">
                     No expenses added yet
@@ -735,7 +735,7 @@ function GroupDetailComponent() {
                   />
 
                   {visibleExpenses.length === 0 ? (
-                    <Card className="p-10 text-center text-slate-500 rounded-2xl border-0 shadow-sm bg-white">
+                    <Card className="p-10 text-center text-slate-500 rounded-2xl border-slate-100 shadow-sm bg-white">
                       <p className="text-lg font-semibold text-slate-700 mb-1">
                         No matching expenses
                       </p>
@@ -762,7 +762,7 @@ function GroupDetailComponent() {
             {/* BALANCES TAB */}
             <TabsContent value="balances" className="mt-6 space-y-6">
               {settlementSuggestions.length > 0 && (
-                <Card className="rounded-2xl border-0 shadow-sm bg-white overflow-hidden">
+                <Card className="rounded-2xl border-slate-100 border-l-4 border-l-blue-500 shadow-sm bg-white overflow-hidden">
                   <CardContent className="p-5 pb-3">
                     <div className="flex items-center gap-2.5">
                       <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
@@ -797,7 +797,7 @@ function GroupDetailComponent() {
               )}
 
               {groupBalances.length === 0 ? (
-                <Card className="p-10 text-center text-slate-500 rounded-2xl border-0 shadow-sm bg-white">
+                <Card className="p-10 text-center text-slate-500 rounded-2xl border-slate-100 shadow-sm bg-white">
                   <Wallet className="w-10 h-10 mx-auto mb-3 text-slate-300" />
                   <p className="text-lg font-semibold text-slate-700 mb-1">
                     No balance data yet
@@ -807,7 +807,7 @@ function GroupDetailComponent() {
                   </p>
                 </Card>
               ) : (
-                <Card className="rounded-2xl border-0 shadow-sm bg-white overflow-hidden">
+                <Card className="rounded-2xl border-slate-100 border-l-4 border-l-emerald-500 shadow-sm bg-white overflow-hidden">
                   <CardContent className="p-5 pb-3">
                     <div className="flex items-center gap-2.5">
                       <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
@@ -899,11 +899,11 @@ function GroupDetailComponent() {
             {/* MEMBERS TAB */}
             <TabsContent value="members" className="mt-6">
               {members.length === 0 ? (
-                <Card className="p-8 text-center text-slate-500 rounded-2xl border-0 shadow-sm bg-white">
+                <Card className="p-8 text-center text-slate-500 rounded-2xl border-slate-100 shadow-sm bg-white">
                   No members found in this group.
                 </Card>
               ) : (
-                <Card className="rounded-2xl border-0 shadow-sm bg-white overflow-hidden">
+                <Card className="rounded-2xl border-slate-100 shadow-sm bg-white overflow-hidden">
                   <CardContent className="p-5 pb-3">
                     <h3 className="font-bold text-slate-900 text-lg">Group Roster</h3>
                     <p className="text-sm text-slate-500 mt-0.5">

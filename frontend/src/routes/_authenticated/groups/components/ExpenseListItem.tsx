@@ -87,7 +87,7 @@ export function ExpenseListItem({
 const yourSharePercent = total > 0 ? Math.round((userShare / total) * 100) : 0
 
   return (
-    <Card className="rounded-2xl border-0 shadow-sm bg-white hover:shadow-md transition-shadow overflow-hidden">
+    <Card className="rounded-2xl border-slate-100 shadow-sm bg-white hover:shadow-md transition-shadow overflow-hidden">
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4 min-w-0 flex-1">

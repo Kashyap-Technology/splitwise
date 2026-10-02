@@ -185,7 +185,13 @@
 .dark .text-slate-300 { color: oklch(0.55 0 0); }
 .dark .text-slate-300\/60 { color: oklch(0.55 0 0 / 0.6); }
 
-/* Borders and dividers become subtle light lines on a dark surface. */
+/* Borders and dividers become subtle light lines on a dark surface.
+
+   NOTE: `border-color` is a shorthand, so it also sets `border-left-color`
+   and would flatten any `border-l-<hue>` accent. Writing the four longhands
+   instead does not help -- Lightning CSS folds four identical longhands back
+   into the shorthand during the build. The accents are therefore re-asserted
+   explicitly at the end of this block. Do not remove those. */
 .dark .border-slate-100,
 .dark .divide-slate-100 { border-color: oklch(1 0 0 / 10%); }
 .dark .border-slate-200,
@@ -194,6 +200,18 @@
 .dark .border-slate-200\/70 { border-color: oklch(1 0 0 / 10%); }
 .dark .border-slate-300 { border-color: oklch(1 0 0 / 22%); }
 .dark .ring-slate-200 { --tw-ring-color: oklch(1 0 0 / 20%); }
+
+/* Accent left edges, re-asserted so they survive the `border-color` shorthand
+   above. These are the coloured edges that mark what a card is: blue for
+   settlement payments, emerald for net balances and money owed, orange and
+   red for alerts. Without this block they are invisible in dark mode on every
+   page that uses them. Each is at (0,2,0) so it ties with the rule above and
+   wins on source order. Keep in sync with the `border-l-*` classes in use --
+   there are currently four. */
+.dark .border-l-blue-500 { border-left-color: oklch(0.72 0.15 256); }
+.dark .border-l-emerald-500 { border-left-color: oklch(0.79 0.17 163); }
+.dark .border-l-orange-400 { border-left-color: oklch(0.82 0.15 70); }
+.dark .border-l-red-400 { border-left-color: oklch(0.73 0.17 25); }
 .dark .bg-black\/10 { background-color: oklch(0 0 0 / 40%); }
 .dark .bg-black\/30 { background-color: oklch(0 0 0 / 55%); }
 .dark .bg-black\/40 { background-color: oklch(0 0 0 / 65%); }
