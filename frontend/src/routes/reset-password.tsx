@@ -21,9 +21,9 @@ import {
 import { useResetPasswordMutation } from "@/features/auth/api/usePasswordResetMutation";
 
 export const Route = createFileRoute("/reset-password")({
-  // Both parameters arrive in the query string from the emailed link. Coerced
-  // rather than declared, because a hand-edited or truncated link can send
-  // anything (or nothing) here and the page still has to render.
+  // Both parameters arrive from the emailed link. Coerced rather than declared,
+  // because a hand-edited, truncated or scanned link can send anything here and
+  // the page still has to render.
   validateSearch: (search: Record<string, unknown>) => ({
     uid: typeof search.uid === "string" ? search.uid : "",
     token: typeof search.token === "string" ? search.token : "",
@@ -35,10 +35,33 @@ export const Route = createFileRoute("/reset-password")({
   component: ResetPasswordPage,
 });
 
+/**
+ * Pull uid/token out of the query string, falling back to the fragment.
+ *
+ * Link scanners in corporate mail and some webmail clients rewrite links on
+ * the way through, and the query string is the part they are most likely to
+ * strip -- it never reaches the scanner's own tracking parameters intact. The
+ * fragment is never sent to a server, so it survives that. Accepting either
+ * costs nothing and covers the mangled cases.
+ */
+function readResetParams(query: { uid: string; token: string }) {
+  if (query.uid && query.token) return query
+
+  const fragment = window.location.hash.replace(/^#/, "")
+  if (!fragment) return query
+
+  const fromHash = new URLSearchParams(fragment)
+  return {
+    uid: query.uid || fromHash.get("uid") || "",
+    token: query.token || fromHash.get("token") || "",
+  }
+}
+
 function ResetPasswordPage() {
-  const { uid = "", token = "" } = Route.useSearch();
-  const [done, setDone] = useState(false);
-  const { mutate, isPending, error } = useResetPasswordMutation();
+  const search = Route.useSearch()
+  const { uid, token } = readResetParams(search)
+  const [done, setDone] = useState(false)
+  const { mutate, isPending, error } = useResetPasswordMutation()
 
   const {
     control,
@@ -60,6 +83,10 @@ function ResetPasswordPage() {
   // submitted -- the server has nothing to verify against. Say so up front
   // rather than failing on an empty form.
   if (!uid || !token) {
+    const hasQuery = Boolean(search.uid || search.token)
+    const partial =
+      hasQuery && (search.uid || search.token) ? "part of the" : "the";
+
     return (
       <main className="mx-auto flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-[400px]">
@@ -72,10 +99,47 @@ function ResetPasswordPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="rounded-xl bg-amber-50 border border-amber-100 p-4 text-sm text-amber-800">
-              The address is missing its reset token. Emails often wrap long links
-              onto a second line -- copying the whole link usually fixes it.
-            </p>
+            <div className="rounded-xl bg-amber-50 border border-amber-100 p-4 text-sm text-amber-800 space-y-2">
+              <p className="font-semibold">
+                {hasQuery
+                  ? `Your email or network rewrote the link and ${partial} address arrived without a reset token.`
+                  : "The address arrived with no reset token at all."}
+              </p>
+              <p>
+                Some mail clients rewrite links in transit and drop the last
+                parameter. Requesting a fresh link usually fixes it.
+              </p>
+            </div>
+
+            {/* Shown so a second report does not have to be guessed at. */}
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer hover:text-slate-900">
+                What this page received
+              </summary>
+              <dl className="mt-2 space-y-1 font-mono break-all">
+                <div>
+                  <dt className="inline font-semibold">path: </dt>
+                  <dd className="inline">{window.location.pathname}</dd>
+                </div>
+                <div>
+                  <dt className="inline font-semibold">query: </dt>
+                  <dd className="inline">
+                    {window.location.search.replace("?", "") || "(none)"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="inline font-semibold">uid: </dt>
+                  <dd className="inline">{search.uid || "(missing)"}</dd>
+                </div>
+                <div>
+                  <dt className="inline font-semibold">token: </dt>
+                  <dd className="inline">
+                    {search.token ? `${search.token.slice(0, 8)}...` : "(missing)"}
+                  </dd>
+                </div>
+              </dl>
+            </details>
+
             <Button render={<Link to="/forgot-password" />} className="w-full">
               Request a new link
             </Button>

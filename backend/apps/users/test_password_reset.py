@@ -63,6 +63,47 @@ class PasswordForgotTests(TestCase):
         self.assertIsNotNone(token, f"no token found in: {body!r}")
         self.assertTrue(default_token_generator.check_token(self.user, token))
 
+    def test_link_keeps_a_literal_ampersand(self):
+        """The bug this guards: escaping the URL turns its `&` into `&amp;`,
+        and mail clients that pass that through un-decoded deliver a link with
+        no token at all. The page then reports a missing token for a link that
+        looks fine."""
+        self.client.post(self.url, {"email": "samyam@example.com"}, format="json")
+
+        html = mail.outbox[0].alternatives[0][0]
+        href = re.search(r'<a href="([^"]*)"[^>]*>\s*Choose a new password', html)
+        self.assertIsNotNone(href, "reset button not found in the HTML part")
+
+        url = href.group(1)
+        self.assertNotIn("&amp;", url, "query separator was HTML-escaped")
+        self.assertIn("?uid=", url)
+        # Both parameters must be separately parseable, which is the whole point.
+        query = url.split("?", 1)[1]
+        self.assertEqual(
+            sorted(p.split("=")[0] for p in query.split("&")), ["token", "uid"]
+        )
+
+    def test_url_is_unescaped_but_the_name_is_still_escaped(self):
+        """Name is free text and must be escaped; the URL is machine-built and
+        must not be. Confusing the two is what caused the broken link."""
+        user = User.objects.create_user(
+            name="<b>Sam</b>", email="markup@example.com", password="oldpassword123"
+        )
+        token = default_token_generator.make_token(user)
+
+        with override_settings(
+            EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend"
+        ):
+            send_password_reset_email(user=user, token=token)
+
+        html = mail.outbox[0].alternatives[0][0]
+        self.assertNotIn("<b>Sam</b>", html)
+        self.assertIn("&lt;b&gt;Sam&lt;/b&gt;", html)
+
+        href = re.search(r'href="([^"]*)"[^>]*>\s*Choose a new password', html)
+        self.assertNotIn("&amp;", href.group(1))
+        self.assertNotIn("<", href.group(1))
+
     def test_email_has_html_alternative(self):
         self.client.post(self.url, {"email": "samyam@example.com"}, format="json")
 
