@@ -7,15 +7,15 @@ def send_group_invitation_email(*, request, invitation):
     base_url = config("BASE_URL").rstrip("/")
     accept_url = f"{base_url}/api/groups/{invitation.token}/invitation/accept/"
 
-    subject = f"You've been invited to join {invitation.group.name} on Splitsy"
+    subject = f"You've been invited to join {invitation.group.name} on Splitwise"
 
     text_content = (
         f"Hello {invitation.receiver.name},\n\n"
         f"{invitation.sender.name} has invited you to join the group "
-        f"'{invitation.group.name}' on Splitsy.\n\n"
+        f"'{invitation.group.name}' on Splitwise.\n\n"
         f"Click the link below to accept the invitation:\n"
         f"{accept_url}\n\n"
-        f"— The Splitsy Team"
+        f"— The Splitwise Team"
     )
 
     html_content = f"""
@@ -37,7 +37,7 @@ def send_group_invitation_email(*, request, invitation):
                                     <div style="width:36px;height:36px;border-radius:10px;background-color:#2563eb;display:inline-flex;align-items:center;justify-content:center;">
                                         <span style="color:#ffffff;font-size:18px;font-weight:bold;">S</span>
                                     </div>
-                                    <span style="font-size:22px;font-weight:700;color:#2563eb;letter-spacing:-0.5px;">Splitsy</span>
+                                    <span style="font-size:22px;font-weight:700;color:#2563eb;letter-spacing:-0.5px;">Splitwise</span>
                                 </div>
                             </td>
                         </tr>
@@ -52,7 +52,7 @@ def send_group_invitation_email(*, request, invitation):
                                     You're Invited!
                                 </h1>
                                 <p style="margin:0 0 24px 0;font-size:15px;color:#64748b;text-align:center;line-height:1.5;">
-                                    {invitation.sender.name} has invited you to join a group on Splitsy.
+                                    {invitation.sender.name} has invited you to join a group on Splitwise.
                                 </p>
                                 <div style="background-color:#f8fafc;border-radius:12px;padding:20px;margin-bottom:28px;">
                                     <div style="display:flex;align-items:center;gap:12px;">
@@ -81,7 +81,7 @@ def send_group_invitation_email(*, request, invitation):
                         <tr>
                             <td align="center" style="padding:24px 0 0 0;">
                                 <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
-                                    Splitsy — Split expenses with friends, effortlessly.<br>
+                                    Splitwise — Split expenses with friends, effortlessly.<br>
                                     You received this email because someone invited you to a group.
                                 </p>
                             </td>

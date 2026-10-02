@@ -60,7 +60,7 @@ export function DataExportCard() {
 
       const link = document.createElement('a')
       link.href = url
-      link.download = 'splitsy-export.json'
+      link.download = 'splitwise-export.json'
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -87,7 +87,7 @@ export function DataExportCard() {
         <div className="border-b pb-4">
           <h3 className="text-base font-semibold text-slate-900">Your data</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Everything Splitsy holds for you: your profile, and every group you belong
+            Everything Splitwise holds for you: your profile, and every group you belong
             to with its expenses and settlements.
           </p>
         </div>

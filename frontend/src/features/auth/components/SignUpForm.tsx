@@ -62,7 +62,7 @@ export function SignUpForm() {
     <Card className="w-[400px]">
       <CardHeader>
         <CardTitle className="text-primary text-center text-4xl font-bold">
-          Join Splitsy
+          Join Splitwise
         </CardTitle>
       </CardHeader>
       <CardDescription className="text-sm text-center text-black/80 font-regular">
@@ -192,7 +192,7 @@ export function SignUpForm() {
           <div className="flex items-center space-x-2 pt-1">
             <Checkbox
               id="terms"
-              className="h-4 w-4 rounded border-gray-300 text-blue"
+              className="h-4 w-4 rounded border-gray-300 text-blue-600"
             />
             <label
               htmlFor="terms"

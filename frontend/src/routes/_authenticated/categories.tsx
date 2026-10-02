@@ -4,6 +4,7 @@ import { AlertTriangle, Grid, Plus, Receipt, TrendingUp, Wallet } from 'lucide-r
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { StatCard } from '@/components/StatCard'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -120,25 +121,29 @@ function CategoriesPage() {
         <>
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-              icon={<Wallet className="w-4 h-4" />}
+              icon={<Wallet className="w-5 h-5" />}
+              tone="emerald"
               label="Your spend"
-              value={`$${money(totals.spend)}`}
+              value={totals.spend}
               caption="Across every category"
             />
             <StatCard
-              icon={<Grid className="w-4 h-4" />}
+              icon={<Grid className="w-5 h-5" />}
+              tone="blue"
               label="Categories"
               value={categories.length}
               caption={`${totals.used} in use`}
             />
             <StatCard
-              icon={<Receipt className="w-4 h-4" />}
+              icon={<Receipt className="w-5 h-5" />}
+              tone="amber"
               label="Expenses tagged"
               value={totals.expenses}
               caption="Total across all groups"
             />
             <StatCard
-              icon={<TrendingUp className="w-4 h-4" />}
+              icon={<TrendingUp className="w-5 h-5" />}
+              tone="slate"
               label="Unused"
               value={totals.unused}
               caption={
@@ -311,38 +316,6 @@ function CategoryCard({
             )}
           </div>
         </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-  caption,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string | number
-  caption: string
-}) {
-  return (
-    <Card className="border-slate-100 shadow-sm rounded-2xl">
-      <CardContent className="p-5">
-        <div className="flex items-center gap-2.5 mb-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
-            {icon}
-          </span>
-          <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
-            {label}
-          </span>
-        </div>
-
-        <p className="text-2xl font-extrabold tracking-tight text-slate-900 truncate">
-          {value}
-        </p>
-        <p className="mt-1 text-xs font-medium text-slate-500">{caption}</p>
       </CardContent>
     </Card>
   )

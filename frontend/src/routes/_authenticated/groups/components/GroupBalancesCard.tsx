@@ -15,7 +15,7 @@ export function GroupBalancesCard({
 }) {
   return (
     <div className="space-y-6">
-      <Card className="rounded-3xl border-0 shadow-sm bg-slate-100/70 p-6 space-y-6">
+      <Card className="rounded-3xl border-slate-100/70 shadow-sm bg-slate-100/70 p-6 space-y-6">
         <h3 className="font-bold text-slate-900 text-base">Group Balances</h3>
 
         <div className="space-y-4">
@@ -60,7 +60,7 @@ export function GroupBalancesCard({
         </div>
       </Card>
 
-      <Card className="rounded-3xl border-0 shadow-sm bg-amber-50/50 p-6 flex gap-3 items-start">
+      <Card className="rounded-3xl border-slate-100/70 shadow-sm bg-amber-50/50 p-6 flex gap-3 items-start">
         <Lightbulb className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
         <div className="text-xs text-amber-900/80 leading-relaxed">
           <span className="font-semibold block text-amber-950 mb-0.5">Pro Tip</span>

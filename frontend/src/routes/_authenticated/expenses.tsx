@@ -6,14 +6,19 @@ import {
   ArrowDownUp,
   CalendarDays,
   Filter,
+  HandCoins,
   Plus,
+  Receipt,
   Search,
+  Tag,
   TrendingUp,
+  Wallet,
   X,
 } from 'lucide-react'
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { StatCard } from '@/components/StatCard'
 import { Card } from '@/components/ui/card'
 import {
   Dialog,
@@ -300,16 +305,21 @@ function ExpensesPage() {
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
+          icon={<Receipt className="w-5 h-5" />}
+          tone="blue"
           label="Total spend"
           value={stats.total}
           caption={`${stats.count} expense${stats.count === 1 ? '' : 's'}`}
         />
         <StatCard
+          icon={<Wallet className="w-5 h-5" />}
+          tone="amber"
           label="Your share"
           value={stats.yourShare}
           caption="What you owe of the above"
         />
         <StatCard
+          icon={<HandCoins className="w-5 h-5" />}
           label="You covered"
           value={stats.net > 0 ? stats.net : 0}
           tone="emerald"
@@ -322,6 +332,8 @@ function ExpensesPage() {
           }
         />
         <StatCard
+          icon={<Tag className="w-5 h-5" />}
+          tone="slate"
           label="Categories"
           value={stats.categories}
           format="number"
@@ -433,7 +445,7 @@ function ExpensesPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <Card className="p-12 text-center rounded-2xl border-0 shadow-sm bg-white">
+        <Card className="p-12 text-center rounded-2xl border-slate-100 shadow-sm bg-white">
           <Search className="w-10 h-10 mx-auto mb-3 text-slate-300" />
           <p className="text-lg font-semibold text-slate-700 mb-1">
             {expenses.length === 0 ? 'No expenses yet' : 'No matching expenses'}
@@ -573,37 +585,6 @@ function ExpensesPage() {
   )
 }
 
-function StatCard({
-  label,
-  value,
-  caption,
-  format = 'currency',
-  tone = 'slate',
-}: {
-  label: string
-  value: number
-  caption: string
-  format?: 'currency' | 'number'
-  tone?: 'slate' | 'emerald'
-}) {
-  const accent = tone === 'emerald' ? 'text-emerald-600' : 'text-slate-900'
-
-  return (
-    <Card className="rounded-2xl border-0 shadow-sm bg-white p-5">
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-        {label}
-      </p>
-      <p className={`mt-1.5 text-2xl font-extrabold tracking-tight ${accent}`}>
-        {format === 'currency' ? '$' : ''}
-        {value.toLocaleString('en-US', {
-          minimumFractionDigits: format === 'currency' ? 2 : 0,
-          maximumFractionDigits: format === 'currency' ? 2 : 0,
-        })}
-      </p>
-      <p className="mt-1 text-xs font-medium text-slate-500">{caption}</p>
-    </Card>
-  )
-}
 
 // Base UI renders the trigger's label by looking the current value up in the
 // `items` prop. Without it, the trigger falls back to stringifying the raw
@@ -683,7 +664,7 @@ function ExpenseRow({
           onOpen()
         }
       }}
-      className="rounded-2xl border-0 shadow-sm bg-white hover:shadow-md transition-shadow cursor-pointer"
+      className="rounded-2xl border-slate-100 shadow-sm bg-white hover:shadow-md transition-shadow cursor-pointer"
     >
       <div className="p-4 flex items-center gap-4">
         <div className={`p-3 rounded-2xl shrink-0 ${box}`}>

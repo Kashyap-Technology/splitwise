@@ -7,7 +7,6 @@ import {
   Grid,
   Settings,
   Zap,
-  Plus,
   LogOut,
   ChevronsUpDown,
   Bell,
@@ -28,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {useLogoutMutation} from '@/features/auth/api/useLogoutMutation'
 import { useGroupQuery, useUserSettlementQuery } from "@/features/group/api/useGroupsQuery";
 
@@ -88,42 +88,25 @@ export function Sidebar({ className = "" }: { className?: string }) {
   return (
     <aside className={`w-64 h-full bg-white text-slate-700 flex flex-col justify-between border-r border-slate-200 select-none ${className}`}>
       
-      {/* 1. Header & Workspace Switcher */}
+      {/* 1. Brand
+          This was a "workspace switcher" offering Splitsy Personal, Household 4B
+          and "Create New Workspace". There is no workspace, plan or billing
+          concept anywhere in the backend — no model, no endpoint, no column — so
+          every entry was inert and "Pro Plan" was a claim the app cannot honour.
+          Replaced with a static brand block; nothing is lost because nothing was
+          ever wired up. */}
       <div className="p-4 border-b border-slate-200">
-        <DropdownMenu>
-          <DropdownMenuTrigger 
-            render={
-              <Button
-                variant="ghost"
-                className="w-full justify-between px-2.5 py-6 hover:bg-slate-100 hover:text-slate-900 rounded-xl transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
-                    <Zap className="w-5 h-5 fill-white" />
-                  </div>
-                  <div className="text-left leading-tight">
-                    <span className="font-bold text-sm text-slate-900 block">Splitsy Workspace</span>
-                    <span className="text-[11px] text-slate-500 font-medium">Pro Plan</span>
-                  </div>
-                </div>
-                <ChevronsUpDown className="w-4 h-4 text-slate-400 shrink-0" />
-              </Button>
-            }
-          />
-          <DropdownMenuContent className="w-56 bg-white border-slate-200 text-slate-800" align="start">
-            <DropdownMenuLabel className="text-slate-500 text-xs">Workspaces</DropdownMenuLabel>
-            <DropdownMenuItem className="focus:bg-slate-100 focus:text-slate-900 cursor-pointer font-medium">
-              <Zap className="w-4 h-4 mr-2 text-blue-600" /> Splitsy Personal
-            </DropdownMenuItem>
-            <DropdownMenuItem className="focus:bg-slate-100 focus:text-slate-900 cursor-pointer font-medium">
-              <Users className="w-4 h-4 mr-2 text-emerald-600" /> Household 4B
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-slate-100" />
-            <DropdownMenuItem className="focus:bg-slate-100 focus:text-slate-900 cursor-pointer text-blue-600 font-medium">
-              <Plus className="w-4 h-4 mr-2" /> Create New Workspace
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-3 px-1">
+          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
+            <Zap className="w-5 h-5 fill-white" />
+          </div>
+          <div className="text-left leading-tight">
+            <span className="font-bold text-sm text-slate-900 block">Splitwise</span>
+            <span className="text-[11px] text-slate-500 font-medium">
+              Split bills, not friendships
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* 2. Main Navigation Area */}
@@ -205,6 +188,8 @@ export function Sidebar({ className = "" }: { className?: string }) {
 
       {/* 3. Footer User Menu */}
       <div className="p-3 border-t border-slate-200 bg-slate-50/50">
+        <ThemeToggle />
+
         <DropdownMenu>
           <DropdownMenuTrigger 
             render={

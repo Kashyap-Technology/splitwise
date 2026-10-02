@@ -168,7 +168,7 @@ class GroupInvitationAcceptApi(APIView):
                         <div class="icon">❌</div>
                         <h1>Unable to Accept Invitation</h1>
                         <p>{str(e)}</p>
-                        <a href="/" class="btn">Go to Splitsy</a>
+                        <a href="/" class="btn">Go to Splitwise</a>
                     </div>
                 </body>
                 </html>
@@ -198,7 +198,7 @@ class GroupInvitationAcceptApi(APIView):
                     <div class="icon">🎉</div>
                     <h1>Invitation Accepted!</h1>
                     <p>You have successfully joined the group. You can now start splitting expenses with your friends.</p>
-                    <a href="/" class="btn">Go to Splitsy</a>
+                    <a href="/" class="btn">Go to Splitwise</a>
                 </div>
             </body>
             </html>

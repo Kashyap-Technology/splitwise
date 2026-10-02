@@ -42,7 +42,7 @@ export function LoginForm() {
     <Card className="w-[400px]">
       <CardHeader>
         <CardTitle className="text-primary text-center text-4xl font-bold">
-          Splitsy
+          Splitwise
         </CardTitle>
       </CardHeader>
       <CardDescription className="text-sm text-center text-black/80 font-regular ">
@@ -52,7 +52,7 @@ export function LoginForm() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {/* API ERROR ALERT */}
           {error && (
-            <div className="rounded-md bg-red 50 p-3 text-center text-xs font-medium text-red-600 border border-red-200">
+            <div className="rounded-md bg-red-50 p-3 text-center text-xs font-medium text-red-600 border border-red-200">
               {error.message || "Invalid email or password. Please try again."}
             </div>
           )}

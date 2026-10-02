@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useForm, Controller, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Camera, Check, ShieldCheck, Loader2, AlertTriangle } from "lucide-react"
+import { Camera, Check, Loader2, AlertTriangle } from "lucide-react"
 import { useMemo, useEffect } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -111,7 +111,7 @@ function AccountProfilePage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-6">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              <span>Splitsy Settings</span>
+              <span>Splitwise Settings</span>
               <span>•</span>
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 mt-1">
@@ -215,9 +215,9 @@ function AccountProfilePage() {
                 <p className="text-sm text-muted-foreground">{me?.email}</p>
 
                 <div className="flex items-center gap-2 mt-3">
-                  <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full border border-blue-100">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Splitsy Pro
-                  </span>
+                  {/* Was a "Splitwise Pro" badge. There is no plan, tier or
+                      billing anywhere in the backend, so it advertised a
+                      subscription that does not exist. The account id is kept. */}
                   <span className="text-xs text-muted-foreground font-mono bg-slate-100 px-2 py-1 rounded">
                     ID: #{me?.id}
                   </span>
@@ -246,7 +246,7 @@ function AccountProfilePage() {
                       <Button  
                         type="button"
                         disabled={deleteUserPending}
-                        className="w-full font-semibold text-xs bg-rose-600 hover:bg-rose-700 text-white cursor-pointer disabled:opacity-50 mt-2 gap-2"
+                        className="w-full font-semibold text-xs bg-rose-700 hover:bg-rose-800 text-white cursor-pointer disabled:opacity-50 mt-2 gap-2"
                       >
                         {deleteUserPending ? (
                           <>
@@ -272,7 +272,7 @@ function AccountProfilePage() {
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => deleteUser()}
-                          className="bg-rose-600 hover:bg-rose-700 text-white"
+                          className="bg-rose-700 hover:bg-rose-800 text-white"
                         >
                           Yes, delete account
                         </AlertDialogAction>
