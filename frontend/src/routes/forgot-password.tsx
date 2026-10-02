@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, createFileRoute, redirect } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, MailCheck } from "lucide-react";
 
 import {
@@ -20,12 +20,12 @@ import {
 } from "@/features/auth/schemas/passwordResetSchema";
 import { useForgotPasswordMutation } from "@/features/auth/api/usePasswordResetMutation";
 
+// No authenticated-redirect here, unlike /login. Being signed in is not a
+// reason to refuse a password reset: someone who forgot their password may well
+// still have a live session on another tab, and bouncing them to the dashboard
+// is the opposite of what they asked for. /me has a change-password card for
+// people who are already able to sign in.
 export const Route = createFileRoute("/forgot-password")({
-  beforeLoad: ({ context }) => {
-    if (context.auth?.isAuthenticated) {
-      throw redirect({ to: "/dashboard" });
-    }
-  },
   component: ForgotPasswordPage,
 });
 
