@@ -11,9 +11,9 @@ import {
   Users,
 } from 'lucide-react'
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { PersonAvatar } from '@/components/PersonAvatar'
 import { StatCard } from '@/components/StatCard'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
+import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useUserSettlementQuery } from '@/features/group/api/useGroupsQuery'
 import type {
   UserSettlement,
@@ -32,32 +33,14 @@ import type {
 } from '@/features/group/types/group.types'
 import {
   SettleUpDialog,
+  type SettlePayable,
   type SettleTarget,
-} from '@/routes/_authenticated/groups/components/SettlementPanel'
+} from '@/features/settlement/components/SettleUpDialog'
+import { money, parseNum } from '@/lib/initials'
 
 export const Route = createFileRoute('/_authenticated/settlement')({
   component: SettlementPage,
 })
-
-const parseNum = (value: unknown): number => {
-  if (value === null || value === undefined) return 0
-  const n = typeof value === 'number' ? value : parseFloat(String(value))
-  return Number.isFinite(n) ? n : 0
-}
-
-const money = (value: number) =>
-  value.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-
-const initials = (name?: string | null) =>
-  (name || '?')
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
 
 // Direction is "paid" when the viewer is the sender, so they owe the receiver.
 // Balances are keyed by group because a settlement is recorded against one
@@ -76,11 +59,16 @@ const bucketKey = (settlement: UserSettlement) =>
 
 function SettlementPage() {
   const { data, isLoading, isError } = useUserSettlementQuery()
-  const [target, setTarget] = useState<(SettleTarget & { groupId: number }) | null>(null)
+  const { user: currentUser } = useAuth()
+  const [settleDraft, setSettleDraft] = useState<SettleTarget | null>(null)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
 
   const settlements = useMemo(() => data?.current_settlements ?? [], [data])
   const history = useMemo(() => data?.settlement_history ?? [], [data])
+
+  const currentUserName = currentUser?.data?.name ?? currentUser?.name ?? 'You'
+  const currentUserAvatarUrl =
+    currentUser?.data?.profile_image_url ?? currentUser?.profile_image_url ?? null
 
   const totalToPay = parseNum(data?.summary?.total_to_pay)
   const totalToReceive = parseNum(data?.summary?.total_to_receive)
@@ -117,15 +105,53 @@ function SettlementPage() {
   const openDebts = settlements.filter((s) => s.direction === 'paid')
   const groupsOwedMoney = groups.filter((group) => group.toReceive > 0).length
 
+  // Everyone the viewer owes, per group. Passing the whole list (not just the
+  // clicked row) is what lets the dialog offer switching between people owed in
+  // the same group instead of locking you to whichever row you happened to tap.
+  const payablesByGroup = useMemo(() => {
+    const map = new Map<number, SettlePayable[]>()
+
+    for (const settlement of settlements) {
+      if (settlement.direction !== 'paid') continue
+
+      const groupId = settlement.group.id
+      const amount = parseNum(settlement.amount)
+      if (amount <= 0.005) continue
+
+      const list = map.get(groupId) ?? []
+      const existing = list.find((person) => person.id === settlement.to_user.id)
+
+      if (existing) {
+        existing.outstanding += amount
+      } else {
+        list.push({
+          id: settlement.to_user.id,
+          name: settlement.to_user.name,
+          avatarUrl: settlement.to_user.profile_image_url ?? null,
+          outstanding: amount,
+        })
+      }
+
+      map.set(groupId, list)
+    }
+
+    for (const list of map.values()) {
+      list.sort((a, b) => b.outstanding - a.outstanding)
+    }
+
+    return map
+  }, [settlements])
+
   // The backend rejects a settlement when the sender's balance is positive, so
   // only the debtor can record one. "Owes you" rows are therefore read-only.
   const openSettle = (settlement: UserSettlement) => {
-    const amount = parseNum(settlement.amount)
-    setTarget({
-      groupId: settlement.group.id,
-      id: settlement.to_user.id,
-      name: settlement.to_user.name,
-      amount,
+    const groupId = settlement.group.id
+
+    setSettleDraft({
+      groupId,
+      groupName: settlement.group.name,
+      payables: payablesByGroup.get(groupId) ?? [],
+      initialReceiverId: settlement.to_user.id,
     })
   }
 
@@ -296,8 +322,10 @@ function SettlementPage() {
                     {group.debts.map((settlement) => (
                       <BalanceRow
                         key={bucketKey(settlement)}
-                        name={settlement.to_user.name}
-                        label="You owe"
+                        party={settlement.to_user}
+                        avatarUrl={settlement.to_user.profile_image_url}
+                        label="You owe · tap settle up to record a payment"
+                        verb="You pay"
                         amount={parseNum(settlement.amount)}
                         tone="owe"
                         onSettle={() => openSettle(settlement)}
@@ -307,8 +335,10 @@ function SettlementPage() {
                     {group.credits.map((settlement) => (
                       <BalanceRow
                         key={bucketKey(settlement)}
-                        name={settlement.from_user.name}
-                        label="Owes you"
+                        party={settlement.from_user}
+                        avatarUrl={settlement.from_user.profile_image_url}
+                        label={`${settlement.from_user.name} owes you`}
+                        verb="Waiting on"
                         amount={parseNum(settlement.amount)}
                         tone="owed"
                       />
@@ -396,9 +426,9 @@ function SettlementPage() {
       </div>
 
       <SettleUpDialog
-        groupId={target ? String(target.groupId) : ''}
-        target={target ? { id: target.id, name: target.name, amount: target.amount } : null}
-        onOpenChange={(open) => !open && setTarget(null)}
+        target={settleDraft}
+        currentUser={{ name: currentUserName, avatarUrl: currentUserAvatarUrl }}
+        onOpenChange={(open) => !open && setSettleDraft(null)}
       />
 
       <SettlementHistoryDialog
@@ -412,42 +442,52 @@ function SettlementPage() {
 
 
 function BalanceRow({
-  name,
+  party,
+  avatarUrl,
   label,
+  verb,
   amount,
   tone,
   onSettle,
 }: {
-  name: string
+  party: { id: number; name: string }
+  avatarUrl?: string | null
   label: string
+  verb: string
   amount: number
   tone: 'owe' | 'owed'
   onSettle?: () => void
 }) {
   return (
-    <div className="p-4 px-5 flex items-center justify-between gap-4 hover:bg-slate-50/60 transition-colors">
+    <div className="p-4 px-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 sm:gap-4 hover:bg-slate-50/60 transition-colors">
       <div className="flex items-center gap-3 min-w-0">
-        <Avatar className="w-10 h-10 shrink-0 border border-slate-100">
-          <AvatarFallback
-            className={`text-xs font-bold ${
-              tone === 'owe'
-                ? 'bg-rose-50 text-rose-600'
-                : 'bg-emerald-50 text-emerald-600'
-            }`}
-          >
-            {initials(name)}
-          </AvatarFallback>
-        </Avatar>
+        <PersonAvatar
+          name={party.name}
+          src={avatarUrl}
+          size="md"
+          tone={tone === 'owe' ? 'rose' : 'emerald'}
+        />
 
         <div className="min-w-0">
-          <p className="font-bold text-slate-900 truncate">{name}</p>
+          {/* `verb` leads and the party name follows, so "You pay Bob" reads
+              unambiguously even out of context. The verb must therefore never
+              contain the party's own name: it used to be built as
+              `${from_user.name} pays`, and since `party` is the same person that
+              rendered "Pawan Shrestha pays Pawan Shrestha" on the balances page.
+              The money direction is also on screen rather than implied by colour
+              alone. */}
+          <p className="font-bold text-slate-900 truncate">
+            {verb} <span className="font-extrabold">{party.name}</span>
+          </p>
           <p className="text-xs font-medium text-slate-400">{label}</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
         <span
-          className={`font-extrabold ${tone === 'owe' ? 'text-rose-500' : 'text-emerald-600'}`}
+          className={`font-extrabold tabular-nums ${
+            tone === 'owe' ? 'text-rose-500' : 'text-emerald-600'
+          }`}
         >
           ${money(amount)}
         </span>
@@ -473,15 +513,16 @@ function HistoryRow({ settlement }: { settlement: UserSettlement }) {
 
   return (
     <div className="flex items-center gap-2.5">
-      <Avatar className="w-8 h-8 shrink-0 border border-slate-100">
-        <AvatarFallback className="bg-emerald-50 text-emerald-600 text-[10px] font-bold">
-          {initials(other.name)}
-        </AvatarFallback>
-      </Avatar>
+      <PersonAvatar
+        name={other.name}
+        src={other.profile_image_url}
+        size="sm"
+        tone="emerald"
+      />
 
       <div className="min-w-0 flex-1">
         <p className="text-xs font-bold text-slate-800 truncate">
-          {youPaid ? `Paid ${other.name}` : `${other.name} paid you`}
+          {youPaid ? `You paid ${other.name}` : `${other.name} paid you`}
         </p>
         <p className="text-[11px] text-slate-400 font-medium truncate">
           {settlement.group.name}
@@ -494,7 +535,7 @@ function HistoryRow({ settlement }: { settlement: UserSettlement }) {
         </p>
       </div>
 
-      <span className="text-xs font-bold text-emerald-600 shrink-0">
+      <span className="text-xs font-bold text-emerald-600 shrink-0 tabular-nums">
         ${money(parseNum(settlement.amount))}
       </span>
     </div>

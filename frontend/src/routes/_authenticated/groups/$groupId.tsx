@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   Mail,
   ArrowRight,
+  HandCoins,
   UserMinus,
   Users as UsersIcon,
 } from 'lucide-react'
@@ -15,9 +16,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 
 import { Card, CardContent } from '@/components/ui/card'
+import { PersonAvatar } from '@/components/PersonAvatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,13 +52,9 @@ import { ExpenseFormDialog } from './components/ExpenseFormDialog'
 import { DeleteExpenseDialog } from './components/DeleteExpenseDialog'
 import { ExpenseListItem } from './components/ExpenseListItem'
 import { ExpenseFilters, type ExpenseSort } from './components/ExpenseFilters'
-import {
-  SettleUpDialog,
-  SettlementRow,
-  type SettleTarget,
-} from './components/SettlementPanel'
 import { InviteMemberDialog } from './components/InviteMemberDialog'
 import { GroupBalancesCard } from './components/GroupBalancesCard'
+import { GroupBalanceStrip } from './components/GroupBalanceStrip'
 import { GroupHeader } from './components/GroupHeader'
 import { SummaryCard } from './components/SummaryCard'
 import type { GroupBalance } from './components/types'
@@ -66,23 +63,15 @@ import { DeleteGroupDialog } from './components/DeleteGroupDialog'
 import { CategoryCreateDialog } from './components/CategoryCreateDialog'
 import { SpendBreakdownDialog } from './components/SpendBreakdownDialog'
 
-export interface SettlementSuggestion {
-  from_user: string
-  to_user: string
-  amount: number
-}
+import { SettleUpDialog, type SettleTarget } from '@/features/settlement/components/SettleUpDialog'
+import { SettlementRow } from '@/features/settlement/components/SettlementRow'
+import { SettlementHistoryList } from '@/features/settlement/components/SettlementHistoryList'
+import { buildIncoming, buildPayables } from '@/features/settlement/lib/buildPayables'
+import type { GroupSettlementSuggestion } from '@/features/group/types/group.types'
 
 export const Route = createFileRoute('/_authenticated/groups/$groupId')({
   component: GroupDetailComponent,
 })
-
-const getInitials = (name: string) =>
-  (name || 'User')
-    .split(' ')
-    .map((word) => word[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
 
 const parseNum = (val: unknown): number => {
   if (val === null || val === undefined) return 0
@@ -219,23 +208,21 @@ export function getGroupBalances(group?: {
 }
 
 export function getSettlementSuggestions(group?: {
-  settlement_suggestions?: Record<string, any>[]
+  settlement_suggestions?: GroupSettlementSuggestion[]
   summary?: Record<string, any>
-}): SettlementSuggestion[] {
+}): GroupSettlementSuggestion[] {
   if (!group) return []
 
   const rawSuggestions =
     group.settlement_suggestions ??
-    (group.summary as Record<string, any> | undefined)?.settlement_suggestions ??
+    ((group.summary as Record<string, any> | undefined)?.settlement_suggestions as
+      | GroupSettlementSuggestion[]
+      | undefined) ??
     []
 
   if (!Array.isArray(rawSuggestions)) return []
 
-  return rawSuggestions.map((item) => ({
-    from_user: item.from_user || item.from_user_name || 'Someone',
-    to_user: item.to_user || item.to_user_name || 'Someone',
-    amount: parseNum(item.amount),
-  }))
+  return rawSuggestions
 }
 
 // Segmented-control styling for the group tabs. base-ui sets `data-active` on
@@ -269,9 +256,9 @@ function GroupDetailComponent() {
 
   const { user: currentUser } = useAuth()
   const currentUserId = currentUser?.data?.id ?? currentUser?.id
-  // The settlement suggestions endpoint returns display names rather than ids,
-  // so "you" has to be matched on the name.
   const currentUserName = currentUser?.data?.name ?? currentUser?.name
+  const currentUserAvatarUrl =
+    currentUser?.data?.profile_image_url ?? currentUser?.profile_image_url ?? null
 
   const { data: group, isLoading: isLoadingGroup } = useGroupDetailQuery(groupId)
   // `group?.expenses ?? []` allocates a new array on every render, which
@@ -321,6 +308,51 @@ function GroupDetailComponent() {
   const groupBalances = useMemo(() => getGroupBalances(group), [group])
   const settlementSuggestions = useMemo(() => getSettlementSuggestions(group), [group])
 
+  // Who the viewer owes, read off the suggestions. A net balance row only says
+  // "you owe $200 overall", so the suggestions are the only place the *pair* is
+  // stated, and they are what make a settlement from this page possible at all.
+  const payables = useMemo(
+    () => buildPayables({ suggestions: settlementSuggestions, currentUserId, members }),
+    [settlementSuggestions, currentUserId, members],
+  )
+
+  // Display-only counterparties for the balance strip: everyone on the other side
+  // of this viewer's balance, in whichever direction the money moves.
+  const counterparties = useMemo(() => {
+    const owes = payables.map((person) => ({ ...person, direction: 'owes' as const }))
+    const owed = buildIncoming({
+      suggestions: settlementSuggestions,
+      currentUserId,
+      members,
+    }).map((person) => ({ ...person, direction: 'owed' as const }))
+
+    return [...owes, ...owed].sort((a, b) => b.outstanding - a.outstanding)
+  }, [payables, settlementSuggestions, currentUserId, members])
+
+  // Avatars for the suggestion rows, which the payload references by id only.
+  const avatarByUserId = useMemo(
+    () => new Map(members.map((member) => [String(member.id), member.profile_image_url ?? null])),
+    [members],
+  )
+
+  const settlements = useMemo(() => group?.settlements ?? [], [group])
+
+  /**
+   * Opens the settle dialog for this group.
+   *
+   * `receiverId` comes from a specific suggestion row when the user clicked
+   * "Settle" there, and is left null when they used the general button, in which
+   * case the dialog picks the largest debt for them.
+   */
+  const openSettleUp = (receiverId?: number | null) => {
+    setSettleTarget({
+      groupId: Number(groupId),
+      groupName: group?.name ?? 'this group',
+      payables,
+      initialReceiverId: receiverId ?? null,
+    })
+  }
+
   const yourBalanceRaw = parseNum(group?.summary?.your_balance)
   const yourBalance = Math.abs(yourBalanceRaw)
 
@@ -336,6 +368,23 @@ function GroupDetailComponent() {
   const peopleInvolvedCount = groupBalances.filter(
     (b) => String(b.id) !== String(currentUserId) && b.statusType !== 'settled'
   ).length
+
+  // The viewer's own net-balance row used to just say "Owes", which left the
+  // real question unanswered: who do I actually pay? Naming the people turns the
+  // figure into something actionable and matches what the dialog will submit.
+  const youOweLabel = useMemo(() => {
+    // Keyed off the sign, not off `payables`: a creditor also has no payables,
+    // and labelling them "settled up" would be plainly wrong.
+    if (yourBalanceRaw > 0.005) return 'Owed to you in this group'
+    if (yourBalanceRaw >= -0.005) return 'Settled up in this group'
+
+    const names = payables.map((person) => person.name)
+
+    if (names.length === 0) return 'Owed to the group'
+    if (names.length === 1) return `Owes ${names[0]}`
+    if (names.length === 2) return `Owes ${names[0]} and ${names[1]}`
+    return `Owes ${names.slice(0, 2).join(', ')} +${names.length - 2} more`
+  }, [payables, yourBalanceRaw])
 
   // The filter lists every category the user has created, not just the ones
   // this group happens to have used. Deriving it from `expenses` (as this
@@ -643,8 +692,11 @@ function GroupDetailComponent() {
       />
 
       <SettleUpDialog
-        groupId={groupId}
         target={settleTarget}
+        currentUser={{
+          name: currentUserName ?? 'You',
+          avatarUrl: currentUserAvatarUrl,
+        }}
         onOpenChange={(open) => {
           if (!open) setSettleTarget(null)
         }}
@@ -695,7 +747,10 @@ function GroupDetailComponent() {
               {/* base-ui marks the selected tab with `data-active`, not
                   `data-state="active"`, so the previous variants never matched
                   and the active tab had no accent at all. */}
-              <TabsList className="h-auto w-auto justify-start gap-1 rounded-full bg-slate-100 p-1">
+              {/* `w-fit` plus three non-shrinking triggers overflowed the
+                  container on narrow phones, so the strip scrolls horizontally
+                  instead of pushing the page sideways. */}
+              <TabsList className="h-auto max-w-full justify-start gap-1 rounded-full bg-slate-100 p-1 overflow-x-auto">
                 <TabsTrigger value="expenses" className={TAB_TRIGGER_CLASS}>
                   Expenses ({expenses.length})
                 </TabsTrigger>
@@ -716,12 +771,26 @@ function GroupDetailComponent() {
                 title="Create a category for organizing group expenses"
               >
                 <Tag className="h-3.5 w-3.5" />
-                <span>Add expense category</span>
+                <span className="hidden sm:inline">Add expense category</span>
               </Button>
             </div>
 
             {/* EXPENSES TAB */}
             <TabsContent value="expenses" className="tab-panel mt-6 space-y-4">
+              {/* Each expense row shows the viewer's *share of that expense*,
+                  which never changes when money is handed back -- so this strip
+                  states the group's real outstanding position right above the
+                  list. Without it, settling up left the tab still reading "You
+                  owe $200" on every row and looked like nothing had happened.
+                  Hidden for an empty group, where there is nothing to clarify. */}
+              {expenses.length > 0 && (
+                <GroupBalanceStrip
+                  yourBalanceRaw={yourBalanceRaw}
+                  counterparties={counterparties}
+                  onSettle={payables.length > 0 ? () => openSettleUp() : undefined}
+                />
+              )}
+
               {expenses.length === 0 ? (
                 <Card className="p-10 text-center text-slate-500 rounded-2xl border-slate-100 shadow-sm bg-white">
                   <Receipt className="w-10 h-10 mx-auto mb-3 text-slate-300" />
@@ -780,35 +849,61 @@ function GroupDetailComponent() {
             <TabsContent value="balances" className="tab-panel mt-6 space-y-6">
               {settlementSuggestions.length > 0 && (
                 <Card className="rounded-2xl border-slate-100 border-l-4 border-l-blue-500 shadow-sm bg-white overflow-hidden">
-                  <CardContent className="p-5 pb-3">
+                  <CardContent className="p-5 pb-3 flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
                         <ArrowRight className="h-4 w-4" />
                       </span>
                       <div>
                         <h3 className="font-bold text-slate-900 text-lg">
-                          Optimal Settlement Payments
+                          Who pays whom
                         </h3>
                         <p className="text-sm text-slate-500 mt-0.5">
-                          Minimizes the number of transactions needed to clear all
-                          debts.
+                          The fewest payments that clear every debt in this group.
                         </p>
                       </div>
                     </div>
+
+                    {/* Only offered when the viewer is actually a payer. A
+                        "Settle up" button that the backend will reject with
+                        "You are not owed money" is worse than no button. */}
+                    {payables.length > 0 && (
+                      <Button
+                        type="button"
+                        onClick={() => openSettleUp()}
+                        className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white gap-2"
+                      >
+                        <HandCoins className="h-4 w-4" />
+                        Settle up
+                      </Button>
+                    )}
                   </CardContent>
                   <div className="divide-y divide-slate-100">
-                    {settlementSuggestions.map((s, idx) => (
-                      <SettlementRow
-                        key={`${s.from_user}-${s.to_user}-${idx}`}
-                        fromUser={
-                          s.from_user === currentUserName ? 'You' : s.from_user
-                        }
-                        toUser={
-                          s.to_user === currentUserName ? 'You' : s.to_user
-                        }
-                        amount={s.amount}
-                      />
-                    ))}
+                    {settlementSuggestions.map((s, idx) => {
+                      const viewerPays = String(s.from_user_id) === String(currentUserId)
+
+                      return (
+                        <SettlementRow
+                          key={`${s.from_user_id}-${s.to_user_id}-${idx}`}
+                          amount={parseNum(s.amount)}
+                          from={{
+                            id: s.from_user_id,
+                            name: s.from_user,
+                            avatarUrl: avatarByUserId.get(String(s.from_user_id)) ?? null,
+                            isViewer: viewerPays,
+                          }}
+                          to={{
+                            id: s.to_user_id,
+                            name: s.to_user,
+                            avatarUrl: avatarByUserId.get(String(s.to_user_id)) ?? null,
+                            isViewer: String(s.to_user_id) === String(currentUserId),
+                          }}
+                          onSettle={
+                            viewerPays ? () => openSettleUp(s.to_user_id) : undefined
+                          }
+                        />
+                      )
+                    })}
                   </div>
                 </Card>
               )}
@@ -825,20 +920,32 @@ function GroupDetailComponent() {
                 </Card>
               ) : (
                 <Card className="rounded-2xl border-slate-100 border-l-4 border-l-emerald-500 shadow-sm bg-white overflow-hidden">
-                  <CardContent className="p-5 pb-3">
+                  <CardContent className="p-5 pb-3 flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
                         <Wallet className="h-4 w-4" />
                       </span>
                       <div>
                         <h3 className="font-bold text-slate-900 text-lg">
-                          Net Balances
+                          Net balances
                         </h3>
                         <p className="text-sm text-slate-500 mt-0.5">
-                          Who is owed money, and who owes it.
+                          What each person is owed overall. Pick who to pay from
+                          &quot;Who pays whom&quot; above.
                         </p>
                       </div>
                     </div>
+
+                    {payables.length > 0 && (
+                      <Button
+                        type="button"
+                        onClick={() => openSettleUp()}
+                        className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white gap-2"
+                      >
+                        <HandCoins className="h-4 w-4" />
+                        Settle up
+                      </Button>
+                    )}
                   </CardContent>
                   <div className="divide-y divide-slate-100">
                     {groupBalances.map((b) => {
@@ -847,70 +954,70 @@ function GroupDetailComponent() {
                       return (
                         <div
                           key={b.id}
-                          className="p-4 px-5 flex items-center justify-between gap-4 hover:bg-slate-50/60 transition-colors"
+                          className="p-4 px-5 flex flex-wrap items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <Avatar className="h-11 w-11 rounded-full border shrink-0">
-                              {b.avatarUrl && (
-                                <AvatarImage
-                                  src={b.avatarUrl}
-                                  alt={b.name}
-                                  className="object-cover"
-                                />
-                              )}
-                              <AvatarFallback className="bg-blue-50 text-blue-600 font-bold text-sm">
-                                {getInitials(b.name)}
-                              </AvatarFallback>
-                            </Avatar>
+                            <PersonAvatar
+                              name={b.name}
+                              src={b.avatarUrl}
+                              size="lg"
+                              className="h-10 w-10 sm:h-11 sm:w-11"
+                            />
                             <div className="min-w-0">
                               <span className="font-bold text-slate-800 text-base block truncate">
                                 {isYou ? 'You' : b.name}
                               </span>
                               <span className="text-sm font-semibold text-slate-500">
-                                {b.statusText}
+                                {isYou ? youOweLabel : b.statusText}
                               </span>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-3 shrink-0">
-                            <span
-                              className={`inline-flex items-center gap-1.5 text-base font-extrabold px-3.5 py-1.5 rounded-full ${
-                                b.statusType === 'credit'
-                                  ? 'bg-emerald-50 text-emerald-600'
-                                  : b.statusType === 'settled'
-                                    ? 'bg-slate-100 text-slate-400'
-                                    : 'bg-orange-50 text-orange-600'
-                              }`}
-                            >
-                              {b.statusType !== 'settled' && (
-                                <span>${b.amount.toFixed(2)}</span>
-                              )}
-                              {b.statusText}
-                            </span>
-
-                            {isYou && b.statusType === 'debit' && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={() =>
-                                  setSettleTarget({
-                                    id: b.id,
-                                    name: 'this group',
-                                    amount: b.amount,
-                                  })
-                                }
-                                className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
-                              >
-                                Settle up
-                              </Button>
+                          <span
+                            className={`inline-flex items-center gap-1.5 text-base font-extrabold px-3.5 py-1.5 rounded-full tabular-nums shrink-0 ${
+                              b.statusType === 'credit'
+                                ? 'bg-emerald-50 text-emerald-600'
+                                : b.statusType === 'settled'
+                                  ? 'bg-slate-100 text-slate-400'
+                                  : 'bg-orange-50 text-orange-600'
+                            }`}
+                          >
+                            {b.statusType !== 'settled' && (
+                              <span>${b.amount.toFixed(2)}</span>
                             )}
-                          </div>
+                            {b.statusText}
+                          </span>
                         </div>
                       )
                     })}
                   </div>
                 </Card>
               )}
+
+              {/* Payments already made in this group. The payload always carried
+                  these but nothing rendered them, so a settled group and an
+                  unsettled one looked identical. */}
+              <Card className="rounded-2xl border-slate-100 border-l-4 border-l-emerald-500 shadow-sm bg-white overflow-hidden">
+                <CardContent className="p-5 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+                      <HandCoins className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-lg">
+                        Payment history
+                      </h3>
+                      <p className="text-sm text-slate-500 mt-0.5">
+                        Payments recorded in this group.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+                <SettlementHistoryList
+                  settlements={settlements}
+                  currentUserId={currentUserId}
+                />
+              </Card>
             </TabsContent>
 
             {/* MEMBERS TAB */}
@@ -940,18 +1047,11 @@ function GroupDetailComponent() {
                         className="p-4 px-5 flex items-center justify-between gap-4 hover:bg-slate-50/60 transition-colors"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <Avatar className="h-10 w-10 rounded-full border shrink-0">
-                            {member.profile_image_url && (
-                              <AvatarImage
-                                src={member.profile_image_url}
-                                alt={member.name}
-                                className="object-cover"
-                              />
-                            )}
-                            <AvatarFallback className="bg-blue-50 text-blue-600 font-bold">
-                              {getInitials(member.name)}
-                            </AvatarFallback>
-                          </Avatar>
+                          <PersonAvatar
+                            name={member.name}
+                            src={member.profile_image_url}
+                            size="md"
+                          />
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               <h4 className="font-bold text-slate-900 text-base truncate">

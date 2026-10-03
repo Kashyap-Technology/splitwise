@@ -41,4 +41,7 @@ export type ExpenseCategory = {
 export type GroupMember = {
   id: number
   name: string
+  email?: string | null
+  /** Lets the payer/participant pickers show faces instead of bare names. */
+  profile_image_url?: string | null
 }

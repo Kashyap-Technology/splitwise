@@ -1,7 +1,7 @@
 import { Controller, type Control, type FieldErrors } from 'react-hook-form'
 import { ChevronsUpDown } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
+import { PersonAvatar } from '@/components/PersonAvatar'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -123,7 +123,10 @@ export function MemberPicker({
                     className="w-full justify-between h-auto min-h-10 px-3 py-2 font-normal bg-white hover:bg-white"
                     disabled={isLoadingMembers}
                   >
-                    <div className="flex flex-wrap gap-1 items-center">
+                    {/* Selected members keep their avatar in the trigger, so the
+                        closed state still answers "who is in this split?"
+                        instead of showing a wall of bare names. */}
+                    <div className="flex flex-wrap gap-1.5 items-center min-w-0">
                       {selectedIds.length === 0 ? (
                         <span className="text-slate-400">
                           {isLoadingMembers
@@ -136,13 +139,19 @@ export function MemberPicker({
                         selectedIds.map((id) => {
                           const member = members?.find((item) => Number(item.id) === id)
                           return (
-                            <Badge
+                            <span
                               key={id}
-                              variant="secondary"
-                              className="rounded-md"
+                              className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 py-0.5 pl-0.5 pr-2.5 text-xs font-medium text-slate-700 max-w-[9rem]"
                             >
-                              {member?.name || id}
-                            </Badge>
+                              <PersonAvatar
+                                name={member?.name ?? String(id)}
+                                src={member?.profile_image_url}
+                                size="xs"
+                                tone="blue"
+                                className="border-0"
+                              />
+                              <span className="truncate">{member?.name || id}</span>
+                            </span>
                           )
                         })
                       )}
@@ -153,7 +162,7 @@ export function MemberPicker({
               />
 
               <PopoverContent
-                className="w-[--popover-trigger-width] p-2 bg-white"
+                className="w-[--popover-trigger-width] p-2 bg-white max-w-[calc(100vw-2rem)]"
                 align="start"
               >
                 <div className="space-y-1 max-h-56 overflow-y-auto">
@@ -177,7 +186,14 @@ export function MemberPicker({
                           onCheckedChange={() => toggleItem(memberIdNum)}
                           onClick={(event) => event.stopPropagation()}
                         />
-                        <span className="font-medium text-slate-700">
+                        <PersonAvatar
+                          name={member.name}
+                          src={member.profile_image_url}
+                          size="xs"
+                          tone="blue"
+                          className="border-0"
+                        />
+                        <span className="font-medium text-slate-700 truncate">
                           {member.name}
                         </span>
                       </div>
@@ -198,6 +214,13 @@ export function MemberPicker({
                       const value = item.amount_paid
                       return (
                         <div key={item.user_id} className="flex items-center gap-2">
+                          <PersonAvatar
+                            name={member?.name ?? String(item.user_id)}
+                            src={member?.profile_image_url}
+                            size="xs"
+                            tone="blue"
+                            className="border-0"
+                          />
                           <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{member?.name || item.user_id}</span>
                           <Input
                             type="number"
@@ -205,7 +228,7 @@ export function MemberPicker({
                             step="0.01"
                             value={value ?? ''}
                             onChange={(event) => updateAllocation(item.user_id, event.target.value)}
-                            className="h-8 w-24 text-right text-xs"
+                            className="h-8 w-20 sm:w-24 text-right text-xs"
                             placeholder="0.00"
                           />
                           <span className="w-4 text-xs text-slate-400">$</span>
@@ -231,6 +254,13 @@ export function MemberPicker({
 
                       return (
                         <div key={item.user_id} className="flex items-center gap-2">
+                          <PersonAvatar
+                            name={member?.name ?? String(item.user_id)}
+                            src={member?.profile_image_url}
+                            size="xs"
+                            tone="blue"
+                            className="border-0"
+                          />
                           <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{member?.name || item.user_id}</span>
                           <Input
                             type="number"
@@ -240,14 +270,14 @@ export function MemberPicker({
                             onChange={(event) =>
                               updateParticipantValue(item.user_id, event.target.value)
                             }
-                            className="h-8 w-24 text-right text-xs"
+                            className="h-8 w-16 sm:w-24 text-right text-xs"
                             placeholder="0"
                           />
                           <span className="w-8 text-xs text-slate-400">
                             {splitType === 'exact' ? '$' : '%'}
                           </span>
                           {splitType === 'percentage' && (
-                            <span className="w-16 text-right text-[10px] text-slate-400">
+                            <span className="hidden w-16 text-right text-[10px] text-slate-400 sm:inline">
                               ${Number.isFinite(owed) ? owed.toFixed(2) : '0.00'}
                             </span>
                           )}

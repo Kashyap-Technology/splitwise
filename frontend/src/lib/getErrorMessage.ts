@@ -34,6 +34,41 @@ const BY_STATUS: Record<number, string> = {
 const OFFLINE =
   "Could not reach the server. Check your connection and try again."
 
+/**
+ * Pull the most specific message out of a DRF error body.
+ *
+ * The shapes that actually reach this function are not one shape. A non-field
+ * validation error arrives as a bare list (`["too much"]`), a per-field error as
+ * a map (`{amount: ["too much"]}`), and the custom exception handler wraps
+ * either one level deeper (`{detail: {detail: [...]}}`). Only the map shape used
+ * to be handled, so settlement errors like "You are paying more than you owe"
+ * were swallowed and the generic "Validation error" title was shown even though
+ * the real sentence was sitting in the body.
+ */
+function firstMessage(value: unknown): string {
+  if (value === null || value === undefined) return "";
+
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const found = firstMessage(entry);
+      if (found) return found;
+    }
+    return "";
+  }
+
+  if (typeof value === "object") {
+    for (const entry of Object.values(value as Record<string, unknown>)) {
+      const found = firstMessage(entry);
+      if (found) return found;
+    }
+  }
+
+  return "";
+}
+
 export function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status;
@@ -41,26 +76,15 @@ export function getErrorMessage(error: unknown): string {
     // The API's own message, when there is one. `extra.fields` holds DRF
     // per-field validation errors, which are more specific still.
     const data = error.response?.data as
-      | { message?: unknown; extra?: { fields?: Record<string, unknown> } }
+      | { message?: unknown; extra?: { fields?: unknown } }
       | undefined;
 
     const serverMessage =
       typeof data?.message === "string" ? data.message.trim() : "";
 
-    if (serverMessage) {
-      const fields = data?.extra?.fields;
-      if (fields) {
-        const first = Object.values(fields)[0];
-        // DRF field errors arrive as ["message"] or {0: "message"}.
-        const detail = Array.isArray(first)
-          ? String(first[0] ?? "")
-          : typeof first === "object" && first
-            ? String(Object.values(first as Record<string, unknown>)[0] ?? "")
-            : "";
-        if (detail) return detail;
-      }
-      return serverMessage;
-    }
+    const detail = firstMessage(data?.extra?.fields);
+    if (detail) return detail;
+    if (serverMessage) return serverMessage;
 
     if (status === undefined) {
       // Distinguish a dead connection from a request that timed out, because

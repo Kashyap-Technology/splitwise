@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Controller, useWatch, type UseFormReturn } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
+import { PersonAvatar } from '@/components/PersonAvatar'
 import {
   Dialog,
   DialogContent,
@@ -221,12 +222,21 @@ export function ExpenseFormFields({
                     return (
                       <div
                         key={participant.user_id}
-                        className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-slate-200"
+                        className="flex items-center gap-2.5 justify-between rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-slate-200"
                       >
-                        <span className="font-medium text-slate-700">
-                          {member?.name || participant.user_id}
+                        <span className="flex items-center gap-2.5 min-w-0">
+                          <PersonAvatar
+                            name={member?.name ?? String(participant.user_id)}
+                            src={member?.profile_image_url}
+                            size="xs"
+                            tone="blue"
+                            className="border-0"
+                          />
+                          <span className="font-medium text-slate-700 truncate">
+                            {member?.name || participant.user_id}
+                          </span>
                         </span>
-                        <span className="font-semibold text-slate-900">
+                        <span className="font-semibold text-slate-900 shrink-0 tabular-nums">
                           ${equalShares[index]?.toFixed(2) ?? '0.00'}
                         </span>
                       </div>
@@ -266,12 +276,21 @@ export function ExpenseFormFields({
                       return (
                         <div
                           key={participant.user_id}
-                          className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-slate-200"
+                          className="flex items-center gap-2.5 justify-between rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-slate-200"
                         >
-                          <span className="font-medium text-slate-700">
-                            {member?.name || participant.user_id}
+                          <span className="flex items-center gap-2.5 min-w-0">
+                            <PersonAvatar
+                              name={member?.name ?? String(participant.user_id)}
+                              src={member?.profile_image_url}
+                              size="xs"
+                              tone="blue"
+                              className="border-0"
+                            />
+                            <span className="font-medium text-slate-700 truncate">
+                              {member?.name || participant.user_id}
+                            </span>
                           </span>
-                          <span className="font-semibold text-slate-900">
+                          <span className="font-semibold text-slate-900 shrink-0 tabular-nums">
                             {Number.isFinite(owed) ? owed.toFixed(2) : '0.00'}
                           </span>
                         </div>

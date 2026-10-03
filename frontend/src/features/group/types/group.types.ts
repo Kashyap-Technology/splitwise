@@ -80,7 +80,7 @@ export interface GroupDetailData {
   created_at: string;
   members: GroupMemberResponse[];
   expenses: GroupExpense[];
-  settlements: unknown[];
+  settlements: GroupSettlementRecord[];
   settlement_suggestions: GroupSettlementSuggestion[];
   balances: GroupDetailBalance[];
   summary: GroupDetailSummary;
@@ -116,9 +116,28 @@ export interface GroupExpense {
 }
 
 export interface GroupSettlementSuggestion {
+  // Ids alongside names so a suggestion can be turned into a real settlement:
+  // names alone cannot be submitted, and cannot be matched to the viewer.
+  from_user_id: number;
+  to_user_id: number;
   from_user: string;
   to_user: string;
   amount: string;
+}
+
+export interface GroupSettlementRecordUser {
+  id: number;
+  name: string;
+  email: string;
+  profile_image_url?: string | null;
+}
+
+export interface GroupSettlementRecord {
+  id: number;
+  from_user: GroupSettlementRecordUser;
+  to_user: GroupSettlementRecordUser;
+  amount: string;
+  created_at: string;
 }
 
 export interface GroupDetailBalance {
@@ -138,6 +157,8 @@ export interface GroupDetailSummary {
 }
 
 export interface GroupSettlementResponse{
+    from_user_id:number
+    to_user_id:number
     from_user:string
     to_user:string;
     amount:string
@@ -147,6 +168,7 @@ export interface UserSettlementUser {
   id: number
   name: string
   email: string
+  profile_image_url?: string | null
 }
 
 export interface UserSettlementGroup {
