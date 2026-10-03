@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Card } from '@/components/ui/card'
 import { CARD_TONES, type CardTone } from '@/components/StatCard'
 
@@ -18,6 +18,8 @@ export function SummaryCard({
   tone = 'slate',
   badge,
   valueFormat = 'currency',
+  className,
+  style,
 }: {
   icon: ReactNode
   label: string
@@ -30,6 +32,9 @@ export function SummaryCard({
   tone?: SummaryTone
   badge?: string
   valueFormat?: 'currency' | 'number'
+  /** Lets callers opt into the shared entrance animation and stagger. */
+  className?: string
+  style?: CSSProperties
 }) {
   const formatted = Math.abs(value).toLocaleString('en-US', {
     minimumFractionDigits: valueFormat === 'currency' ? 2 : 0,
@@ -41,7 +46,8 @@ export function SummaryCard({
 
   return (
     <Card
-      className={`rounded-[28px] border-none shadow-sm p-6 flex flex-col justify-between relative overflow-hidden min-h-[210px] ${palette.card}`}
+      style={style}
+      className={`rounded-[28px] border-none shadow-sm p-6 flex flex-col justify-between relative overflow-hidden min-h-[210px] ${palette.card} ${className ?? ''}`}
     >
       {/* Decorative watermark */}
       <div

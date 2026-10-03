@@ -63,9 +63,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         // Fixed, not absolute: these must escape any `overflow-hidden` ancestor,
-        // which several pages use. Top-right so they sit away from the sidebar
-        // and the mobile nav, and animate downward from the edge.
-        className="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-[min(380px,calc(100vw-2rem))] pointer-events-none"
+        // which several pages use.
+        //
+        // Bottom-right on mobile, top-right from `lg` up. On phones the top-right
+        // corner is the hamburger button (see _authenticated.tsx), and at
+        // z-[100] the toast would sit on top of it and swallow the tap for the
+        // life of the timer. The bottom is also thumb-reachable.
+        className="fixed bottom-4 left-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none sm:left-auto sm:w-[min(380px,calc(100vw-2rem))] lg:top-4 lg:right-4 lg:bottom-auto lg:left-auto"
         role="region"
         aria-label="Notifications"
       >
@@ -106,7 +110,10 @@ function ToastItem({
     <div
       // pointer-events-auto so the dismiss button is clickable even though the
       // container opts out of pointer events.
-      className={`pointer-events-auto flex items-start gap-3 rounded-xl border border-slate-200 border-l-4 ${accent} bg-white shadow-lg p-3.5 animate-in fade-in slide-in-from-top-2`}
+      // Slides up from the bottom on mobile and down from the top on desktop, to
+      // match where the stack sits at each breakpoint. `--tw-enter-translate-y`
+      // is the same variable tw-animate-css animates, so no extra keyframes.
+      className={`pointer-events-auto flex items-start gap-3 rounded-xl border border-slate-200 border-l-4 ${accent} bg-white shadow-lg p-3.5 animate-in fade-in slide-in-from-bottom-2 lg:slide-in-from-top-2`}
       role={toast.kind === "error" ? "alert" : "status"}
     >
       <svg

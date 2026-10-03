@@ -45,9 +45,13 @@ export function ExpenseFormDialog(props: {
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-white rounded-2xl">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
+      {/* `p-0` + flex column so the header and footer stay pinned while only the
+          form body scrolls. The popup itself is height-capped by DialogContent,
+          which is what stopped the top of this tall form from being pushed off
+          screen. */}
+      <DialogContent className="flex flex-col overflow-hidden bg-white p-0 sm:max-w-md rounded-2xl">
+        <DialogHeader className="shrink-0 gap-1.5 p-4 pb-3">
+          <DialogTitle className="pr-8">{isEdit ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
           <DialogDescription>
             {isEdit
               ? 'Update this expense. Shares will be recalculated for everyone.'
@@ -55,21 +59,28 @@ export function ExpenseFormDialog(props: {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={props.onSubmit} className="space-y-4 pt-2">
-          <ExpenseFormFields {...props} />
-          <DialogFooter className="pt-4 flex justify-end gap-2">
+        <form
+          onSubmit={props.onSubmit}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 pt-2">
+            <ExpenseFormFields {...props} />
+          </div>
+
+          <DialogFooter className="mx-0 mb-0 shrink-0 gap-2 border-t bg-slate-50 p-4">
             <Button
               type="button"
               variant="outline"
               onClick={props.onCancel}
               disabled={props.isPending}
+              className="flex-1 sm:flex-none"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={props.isPending}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white sm:flex-none"
             >
               {props.isPending
                 ? isEdit

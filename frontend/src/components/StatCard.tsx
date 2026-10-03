@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 /**
  * The one palette for tinted stat cards.
@@ -83,6 +83,8 @@ export function StatCard({
   format = 'currency',
   signed = false,
   valueClassName = 'text-slate-900',
+  className,
+  style,
 }: {
   icon?: ReactNode
   label: string
@@ -93,6 +95,9 @@ export function StatCard({
   /** Prefixes a "+" to positive values, for cards about money coming in. */
   signed?: boolean
   valueClassName?: string
+  /** Lets callers opt into the shared entrance animation and stagger. */
+  className?: string
+  style?: CSSProperties
 }) {
   const palette = CARD_TONES[tone]
 
@@ -103,7 +108,8 @@ export function StatCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-[28px] border-none shadow-sm p-6 flex flex-col justify-between min-h-[176px] ${palette.card}`}
+      style={style}
+      className={`relative overflow-hidden rounded-[28px] border-none shadow-sm p-6 flex flex-col justify-between min-h-[176px] ${palette.card} ${className ?? ''}`}
     >
       {icon && (
         <div

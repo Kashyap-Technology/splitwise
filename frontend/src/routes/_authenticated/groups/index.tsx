@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, type CSSProperties } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -171,7 +171,7 @@ export function RouteComponent() {
   return (
     <div className="min-h-screen bg-[#F4F5F9] text-slate-800 p-6 md:p-10 space-y-8 max-w-7xl mx-auto">
       {/* Top Navbar Header */}
-      <div className="flex items-center justify-between pb-2">
+      <div className="flex items-center justify-between pb-2 anim-rise">
         <div className="relative w-72">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
@@ -208,7 +208,7 @@ export function RouteComponent() {
       </div>
 
       {/* Main Page Title & Actions Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-2">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-2 anim-rise anim-stagger" style={{ '--anim-i': 1 } as CSSProperties}>
         <div className="space-y-2 max-w-2xl">
           <div className="inline-block relative">
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 relative z-10">
@@ -394,7 +394,8 @@ export function RouteComponent() {
                   key={group.id}
                   to="/groups/$groupId"
                   params={{ groupId: group.id.toString() }}
-                  className="block group transition-all"
+                  className="block group transition-all anim-rise anim-stagger"
+                  style={{ '--anim-i': index } as CSSProperties}
                 >
                   <Card className="relative overflow-hidden rounded-[28px] border-none bg-white p-6 shadow-sm hover:shadow-md transition-all duration-200 h-full flex flex-col justify-between">
                     {/* Top Right Curved Colored Accent Backdrop */}
@@ -409,12 +410,16 @@ export function RouteComponent() {
                     </div>
 
                     <CardHeader className="p-0 space-y-0 relative z-10">
-                      {/* Avatar Icon */}
-                      <Avatar className="h-28 w-28 rounded-2xl border border-slate-100 shadow-2xs shrink-0 mb-4 bg-slate-50">
+                      {/* Matches the group detail hero so a photo reads the same on
+                          both pages. The decorative glow from GroupHeader is left
+                          off here: this Card sets `overflow-hidden` to clip its
+                          accent blob, so a blurred halo would be sliced off flat
+                          against the card edge. */}
+                      <Avatar className="h-32 w-32 rounded-[1.75rem] border-4 border-white shadow-lg ring-1 ring-slate-200 shrink-0 mb-4 overflow-hidden after:hidden bg-gradient-to-br from-slate-100 to-slate-200">
                         {group.group_image_url && (
-                          <AvatarImage src={group.group_image_url} alt={group.name} className="object-cover" />
+                          <AvatarImage src={group.group_image_url} alt={group.name} className="rounded-[1.5rem] object-cover" />
                         )}
-                        <AvatarFallback className="bg-[#EAEFFD] text-[#0038FF] font-bold text-lg rounded-2xl">
+                        <AvatarFallback className="rounded-[1.5rem] bg-gradient-to-br from-blue-100 via-indigo-50 to-sky-50 text-blue-700 font-bold text-2xl">
                           {getInitials(group.name)}
                         </AvatarFallback>
                       </Avatar>

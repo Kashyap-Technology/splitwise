@@ -32,14 +32,24 @@ export function GroupHeader({
 }) {
   return (
     <div className="flex flex-col gap-4 pb-6 border-b border-slate-100 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-4 min-w-0">
+      <div className="flex items-center gap-4 sm:gap-5 min-w-0">
         <div className="relative shrink-0">
-          <div className="absolute inset-0 rounded-[1.4rem] bg-gradient-to-br from-blue-500/25 via-indigo-500/20 to-cyan-400/20 blur-xl" />
-          <Avatar className="relative h-20 w-20 sm:h-24 sm:w-24 overflow-hidden rounded-[1.4rem] border-4 border-white bg-gradient-to-br from-slate-100 to-slate-200 shadow-lg ring-1 ring-slate-200">
+          <div className="absolute inset-0 rounded-[1.75rem] bg-gradient-to-br from-blue-500/25 via-indigo-500/20 to-cyan-400/20 blur-xl" />
+          {/* `after:hidden` drops Avatar's base `after:` pseudo-element, which draws a
+                *circular* hairline ring on top of the photo and cannot match a
+                rounded-square tile. The image carries the radius of the clip
+                region itself (rounded-[1.75rem] border-box minus border-4 =
+                24px) so its corners are rounded on their own rather than relying
+                on the parent clip alone. */}
+          <Avatar className="relative h-24 w-24 sm:h-32 sm:w-32 overflow-hidden rounded-[1.75rem] border-4 border-white bg-gradient-to-br from-slate-100 to-slate-200 shadow-lg ring-1 ring-slate-200 after:hidden">
             {groupImageUrl ? (
-              <AvatarImage src={groupImageUrl} alt={name} className="object-cover" />
+              <AvatarImage
+                src={groupImageUrl}
+                alt={name}
+                className="rounded-[1.5rem] object-cover"
+              />
             ) : null}
-            <AvatarFallback className="bg-gradient-to-br from-blue-100 via-indigo-50 to-sky-50 text-lg font-bold tracking-wide text-blue-700 sm:text-xl">
+            <AvatarFallback className="rounded-[1.5rem] bg-gradient-to-br from-blue-100 via-indigo-50 to-sky-50 text-xl font-bold tracking-wide text-blue-700 sm:text-2xl">
               {getInitials(name)}
             </AvatarFallback>
           </Avatar>
@@ -58,7 +68,11 @@ export function GroupHeader({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
+      {/* Wrap until `lg`: the four buttons need ~590px and the hero needs
+          ~300px more, which overflows a `sm`/`md` viewport. Without `shrink-0`
+          the button block can wrap onto extra rows instead of crushing the
+          title column, which is shrinkable and would otherwise collapse. */}
+      <div className="flex flex-wrap items-center gap-3 sm:justify-end">
         {/* Edit and delete are admin-only server-side. Showing them to plain
             members offered actions that could only ever fail with a 403. */}
         {canManage && (
@@ -87,7 +101,7 @@ export function GroupHeader({
           <Plus className="w-4 h-4" />
           <span>Add Expense</span>
         </Button>
-{canManage && (
+        {canManage && (
           <Button
             onClick={onDeleteGroup}
             className="rounded-full px-5 h-10 bg-red-600 hover:bg-red-700 text-white font-medium shadow-sm transition-colors cursor-pointer"

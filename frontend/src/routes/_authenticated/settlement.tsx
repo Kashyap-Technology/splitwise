@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   ArrowDownLeft,
@@ -145,7 +145,7 @@ function SettlementPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 anim-rise">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Balances</h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -201,18 +201,24 @@ function SettlementPage() {
               ? `Across ${openDebts.length} payment${openDebts.length === 1 ? '' : 's'}`
               : 'Nothing outstanding'
           }
+          className="anim-rise anim-stagger"
+          style={{ '--anim-i': 1 } as CSSProperties}
         />
         <StatCard
-          icon={<ArrowDownLeft className="w-5 h-5" />}
+          icon={<ArrowDownLeft className="w-5 w-5" />}
           label="Owed to you"
           value={totalToReceive}
           tone="emerald"
           caption={totalToReceive > 0 ? 'Waiting on payments' : 'Nothing incoming'}
+          className="anim-rise anim-stagger"
+          style={{ '--anim-i': 2 } as CSSProperties}
         />
         <StatCard
           icon={<TrendingUp className="w-5 h-5" />}
           label="Net position"
           value={Math.abs(net)}
+          className="anim-rise anim-stagger"
+          style={{ '--anim-i': 3 } as CSSProperties}
           tone={net > 0 ? 'emerald' : net < 0 ? 'rose' : 'slate'}
           signed
           caption={
@@ -250,8 +256,12 @@ function SettlementPage() {
               </CardContent>
             </Card>
           ) : (
-            groups.map((group) => (
-              <Card key={group.id} className="border-slate-100 shadow-sm rounded-2xl overflow-hidden">
+            groups.map((group, groupIndex) => (
+              <Card
+                key={group.id}
+                className="border-slate-100 shadow-sm rounded-2xl overflow-hidden anim-rise anim-stagger"
+                style={{ '--anim-i': groupIndex } as CSSProperties}
+              >
                 <CardContent className="p-0">
                   <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
                     <div className="flex items-center gap-2.5 min-w-0">

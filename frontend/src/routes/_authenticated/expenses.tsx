@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -285,7 +285,7 @@ function ExpensesPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 anim-rise">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Expenses</h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -310,6 +310,8 @@ function ExpensesPage() {
           label="Total spend"
           value={stats.total}
           caption={`${stats.count} expense${stats.count === 1 ? '' : 's'}`}
+          className="anim-rise anim-stagger"
+          style={{ '--anim-i': 1 } as CSSProperties}
         />
         <StatCard
           icon={<Wallet className="w-5 h-5" />}
@@ -317,10 +319,14 @@ function ExpensesPage() {
           label="Your share"
           value={stats.yourShare}
           caption="What you owe of the above"
+          className="anim-rise anim-stagger"
+          style={{ '--anim-i': 2 } as CSSProperties}
         />
         <StatCard
           icon={<HandCoins className="w-5 h-5" />}
           label="You covered"
+          className="anim-rise anim-stagger"
+          style={{ '--anim-i': 3 } as CSSProperties}
           value={stats.net > 0 ? stats.net : 0}
           tone="emerald"
           caption={
@@ -338,10 +344,12 @@ function ExpensesPage() {
           value={stats.categories}
           format="number"
           caption="Used in this view"
+          className="anim-rise anim-stagger"
+          style={{ '--anim-i': 4 } as CSSProperties}
         />
       </section>
 
-      <section className="bg-white rounded-2xl shadow-sm p-3 flex flex-col gap-3">
+      <section className="bg-white rounded-2xl shadow-sm p-3 flex flex-col gap-3 anim-rise anim-stagger" style={{ '--anim-i': 5 } as CSSProperties}>
         <div className="flex flex-col lg:flex-row lg:items-center gap-3">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -469,8 +477,12 @@ function ExpensesPage() {
         </Card>
       ) : (
         <div className="space-y-6">
-          {sections.map((section) => (
-            <section key={section.key} className="space-y-2">
+          {sections.map((section, sectionIndex) => (
+            <section
+              key={section.key}
+              className="space-y-2 anim-rise anim-stagger"
+              style={{ '--anim-i': sectionIndex } as CSSProperties}
+            >
               <div className="flex items-center justify-between gap-3 px-1">
                 <h2 className="flex items-center gap-2 text-sm font-bold text-slate-500">
                   {groupBy === 'date' && relativeDay(section.items[0].created_at, startOfToday) ? (
