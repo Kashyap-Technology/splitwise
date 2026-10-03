@@ -294,6 +294,11 @@ class GroupDetailSettlementSerializer(serializers.Serializer):
 
 
 class GroupDetailSettlementSuggestionSerializer(serializers.Serializer):
+    # Ids travel with the names so the client can match a suggestion to the
+    # viewer ("is this me?") and submit a settlement against the right pair,
+    # instead of string-matching display names.
+    from_user_id = serializers.IntegerField(source="from_id")
+    to_user_id = serializers.IntegerField(source="to_id")
     from_user = serializers.CharField(source="from")
     to_user = serializers.CharField(source="to")
     amount = serializers.DecimalField(max_digits=10, decimal_places=5)
@@ -457,8 +462,10 @@ class UserGroupApi(APIView):
             return get_storj_public_url(image_key=obj.group_imagekey)
 
         def get_your_balance(self, obj):
-            user = self.context["request"].user
-            return get_group_balance(group=obj).get(user.id, Decimal("0"))
+            # Precomputed in the view. Both this field and `balance_status` need
+            # it, and each call runs four aggregate queries, so resolving them
+            # per-field doubled the query count for every group in the list.
+            return self.context["your_balances"].get(obj.id, Decimal("0"))
 
         def get_balance_status(self, obj):
             balance = self.get_your_balance(obj)
@@ -486,10 +493,15 @@ class UserGroupApi(APIView):
             total_expenses=Subquery(total_expenses),
         )
 
+        your_balances = {
+            group.id: get_group_balance(group=group).get(request.user.id, Decimal("0"))
+            for group in groups
+        }
+
         serializer = self.OutputSerializer(
             groups,
             many=True,
-            context={"request": request},
+            context={"request": request, "your_balances": your_balances},
         )
 
         return api_success(

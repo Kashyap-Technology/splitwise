@@ -49,7 +49,6 @@ def get_invitation_by_token(*, token):
 
 
 def get_group_member_list(*, group):
-    print(group)
     return group.group_memberships.select_related("user")
 
 
@@ -96,11 +95,16 @@ def get_group_balance(*, group):
             - settlement_received_map.get(user_id, 0)
         )
 
-    print(balance)
     return balance
 
 
 def group_settlement(*, balance):
+    """Reduce a group's balances to the fewest debtor -> creditor transfers.
+
+    Returns a list of ``{from_id, from, to_id, to, amount}`` dicts. The ids are
+    what let a client turn a suggestion into a real settlement: names alone can
+    only be displayed, so a payer picking a receiver had nothing to submit.
+    """
     # user_id => user map
     group_members = {
         user.id: user for user in User.objects.filter(id__in=balance.keys())
@@ -115,6 +119,13 @@ def group_settlement(*, balance):
         elif balance < 0:
             debtors.append([user_id, -balance])
 
+    # Largest exposure first. It keeps the transfer count near-minimal and, more
+    # importantly here, makes the output stable: dict ordering of `balance`
+    # otherwise decides the pairing, so the same group could return different
+    # suggestions on two requests and the UI would show a different plan.
+    debtors.sort(key=lambda row: (-row[1], row[0]))
+    creditors.sort(key=lambda row: (-row[1], row[0]))
+
     settlements = []
     i = j = 0
 
@@ -126,7 +137,9 @@ def group_settlement(*, balance):
 
         settlements.append(
             {
+                "from_id": debtor_id,
                 "from": group_members[debtor_id].name,
+                "to_id": creditor_id,
                 "to": group_members[creditor_id].name,
                 "amount": amount,
             }

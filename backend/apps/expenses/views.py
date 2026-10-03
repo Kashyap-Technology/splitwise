@@ -303,6 +303,8 @@ class GroupSettlementApi(APIView):
     permission_classes = [IsAuthenticated]
 
     class OutputSerializer(serializers.Serializer):
+        from_user_id = serializers.IntegerField(source="from_id")
+        to_user_id = serializers.IntegerField(source="to_id")
         from_user = serializers.CharField(source="from")
         to_user = serializers.CharField(source="to")
         amount = serializers.DecimalField(decimal_places=2, max_digits=10)
