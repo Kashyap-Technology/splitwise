@@ -3,7 +3,7 @@ import { useForm, Controller, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Camera, Check, Loader2, AlertTriangle } from "lucide-react"
-import { useMemo, useEffect } from "react"
+import { useMemo, useEffect, type CSSProperties } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Field, FieldLabel, FieldError, FieldContent } from "@/components/ui/field"
@@ -110,7 +110,7 @@ function AccountProfilePage() {
       <div className="mx-auto max-w-5xl space-y-8">
         
         {/* Header Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-6 anim-rise">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               <span>Splitwise Settings</span>
@@ -168,7 +168,7 @@ function AccountProfilePage() {
           className="grid grid-cols-1 md:grid-cols-3 gap-8"
         >
           {/* Left Column: Profile Card & Avatar */}
-          <div className="space-y-6">
+          <div className="space-y-6 anim-rise anim-stagger" style={{ '--anim-i': 1 } as CSSProperties}>
             {/* Same tinted gradient as the stat cards elsewhere, so the profile
                 reads as part of the same system rather than a plain panel. */}
             <Card
@@ -295,7 +295,7 @@ function AccountProfilePage() {
           </div>
 
           {/* Right Column: Personal Information Inputs */}
-          <div className="md:col-span-2 space-y-6">
+          <div className="md:col-span-2 space-y-6 anim-rise anim-stagger" style={{ '--anim-i': 2 } as CSSProperties}>
             <Card className="border-slate-100 shadow-sm">
               <CardContent className="p-6 space-y-6">
 

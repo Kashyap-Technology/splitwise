@@ -84,19 +84,23 @@ export function ExpenseListItem({
     : ''
 
   // Shown in the expanded breakdown so a member can see their slice at a glance.
-const yourSharePercent = total > 0 ? Math.round((userShare / total) * 100) : 0
+  const yourSharePercent = total > 0 ? Math.round((userShare / total) * 100) : 0
 
   return (
     <Card className="rounded-2xl border-slate-100 shadow-sm bg-white hover:shadow-md transition-shadow overflow-hidden">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4 min-w-0 flex-1">
-            <div className={`p-3 rounded-2xl shrink-0 ${categoryBox}`}>
-              <CategoryIcon className="w-6 h-6" />
+      <CardContent className="p-4 sm:p-5">
+        {/* The identity block and the amount block are forced onto separate rows
+            below `sm`. Side by side they need ~290px of non-shrinkable width,
+            which collapsed the title column to zero width on phones and let the
+            icon spill over the amounts. */}
+        <div className="flex flex-wrap items-start gap-x-4 gap-y-4">
+          <div className="flex basis-full items-start gap-3 min-w-0 sm:basis-auto sm:flex-1 sm:gap-4">
+            <div className={`p-2.5 rounded-2xl shrink-0 sm:p-3 ${categoryBox}`}>
+              <CategoryIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
 
             <div className="min-w-0 flex-1 space-y-1.5">
-              <h4 className="font-bold text-slate-900 text-xl leading-tight truncate">
+              <h4 className="font-bold text-slate-900 text-lg leading-tight truncate sm:text-xl">
                 {expense.title}
               </h4>
 
@@ -134,43 +138,43 @@ const yourSharePercent = total > 0 ? Math.round((userShare / total) * 100) : 0
             </div>
           </div>
 
-          <div className="flex items-start gap-4 shrink-0">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-3 sm:flex-none sm:shrink-0 sm:justify-end sm:gap-x-4">
             <div className="text-right">
-              <span className="text-xs font-semibold text-slate-400 block mb-0.5">
+              <span className="text-[11px] font-semibold text-slate-400 block mb-0.5 sm:text-xs">
                 Total
               </span>
-              <span className="font-extrabold text-slate-900 text-lg block">
+              <span className="font-extrabold text-slate-900 text-base block tabular-nums sm:text-lg">
                 ${total.toFixed(2)}
               </span>
             </div>
 
-            <div className="h-10 w-px bg-slate-200" />
+            <div className="h-8 w-px bg-slate-200 sm:h-10" />
 
-            <div className="text-right min-w-[86px]">
+            <div className="text-right sm:min-w-[86px]">
               {net > 0 ? (
                 <>
-                  <span className="text-xs font-bold text-emerald-600 block mb-0.5">
+                  <span className="text-[11px] font-bold text-emerald-600 block mb-0.5 sm:text-xs">
                     You lent
                   </span>
-                  <span className="font-extrabold text-emerald-600 text-lg block">
+                  <span className="font-extrabold text-emerald-600 text-base block tabular-nums sm:text-lg">
                     ${net.toFixed(2)}
                   </span>
                 </>
               ) : net < 0 ? (
                 <>
-                  <span className="text-xs font-bold text-orange-600 block mb-0.5">
+                  <span className="text-[11px] font-bold text-orange-600 block mb-0.5 sm:text-xs">
                     You owe
                   </span>
-                  <span className="font-extrabold text-orange-600 text-lg block">
+                  <span className="font-extrabold text-orange-600 text-base block tabular-nums sm:text-lg">
                     ${Math.abs(net).toFixed(2)}
                   </span>
                 </>
               ) : (
                 <>
-                  <span className="text-xs font-semibold text-slate-400 block mb-0.5">
+                  <span className="text-[11px] font-semibold text-slate-400 block mb-0.5 sm:text-xs">
                     Your share
                   </span>
-                  <span className="font-bold text-slate-500 text-lg block">
+                  <span className="font-bold text-slate-500 text-base block tabular-nums sm:text-lg">
                     ${userShare.toFixed(2)}
                   </span>
                 </>
@@ -178,7 +182,7 @@ const yourSharePercent = total > 0 ? Math.round((userShare / total) * 100) : 0
             </div>
 
             {canManage && (
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0 ml-auto sm:ml-0">
                 <Button
                   type="button"
                   variant="ghost"

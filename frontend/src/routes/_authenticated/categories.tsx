@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertTriangle, Grid, Plus, Receipt, TrendingUp, Wallet } from 'lucide-react'
 
@@ -89,7 +89,7 @@ function CategoriesPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 anim-rise">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Categories</h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -126,6 +126,8 @@ function CategoriesPage() {
               label="Your spend"
               value={totals.spend}
               caption="Across every category"
+              className="anim-rise anim-stagger"
+              style={{ '--anim-i': 1 } as CSSProperties}
             />
             <StatCard
               icon={<Grid className="w-5 h-5" />}
@@ -133,6 +135,8 @@ function CategoriesPage() {
               label="Categories"
               value={categories.length}
               caption={`${totals.used} in use`}
+              className="anim-rise anim-stagger"
+              style={{ '--anim-i': 2 } as CSSProperties}
             />
             <StatCard
               icon={<Receipt className="w-5 h-5" />}
@@ -140,6 +144,8 @@ function CategoriesPage() {
               label="Expenses tagged"
               value={totals.expenses}
               caption="Total across all groups"
+              className="anim-rise anim-stagger"
+              style={{ '--anim-i': 3 } as CSSProperties}
             />
             <StatCard
               icon={<TrendingUp className="w-5 h-5" />}
@@ -151,10 +157,12 @@ function CategoriesPage() {
                   ? 'Available for new expenses'
                   : 'Every category has been used'
               }
+              className="anim-rise anim-stagger"
+              style={{ '--anim-i': 4 } as CSSProperties}
             />
           </section>
 
-          <section className="bg-white rounded-2xl shadow-sm p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+          <section className="bg-white rounded-2xl shadow-sm p-3 flex flex-col sm:flex-row sm:items-center gap-3 anim-rise anim-stagger" style={{ '--anim-i': 5 } as CSSProperties}>
             <div className="relative flex-1 min-w-0">
               <Input
                 value={search}
@@ -229,14 +237,19 @@ function CategoriesPage() {
             </Card>
           ) : (
             <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {visible.map((category) => (
-                <CategoryCard
+              {visible.map((category, index) => (
+                <div
                   key={category.id}
-                  category={category}
-                  // Relative to the biggest category, so the bars stay
-                  // comparable. Guards the zero case, where every share is 0.
-                  share={maxSpend > 0 ? parseNum(category.your_spend) / maxSpend : 0}
-                />
+                  className="anim-rise anim-stagger"
+                  style={{ '--anim-i': index } as CSSProperties}
+                >
+                  <CategoryCard
+                    category={category}
+                    // Relative to the biggest category, so the bars stay
+                    // comparable. Guards the zero case, where every share is 0.
+                    share={maxSpend > 0 ? parseNum(category.your_spend) / maxSpend : 0}
+                  />
+                </div>
               ))}
             </section>
           )}

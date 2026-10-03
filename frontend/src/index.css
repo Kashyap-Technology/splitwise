@@ -130,6 +130,112 @@
 }
 
 /* ==========================================================================
+   Entrance animations
+
+   Two utilities plus a stagger delay, so a screen can opt in by adding a
+   class to elements that already exist rather than wrapping them.
+
+     anim-rise   fade + 10px slide up, for page sections and cards
+     anim-fade   fade only, for text blocks where sliding reads as noise
+     anim-stagger  reads --anim-i and offsets the delay, so a mapped list
+                 can stagger with `style={{ '--anim-i': index }}` instead of
+                 needing a class per position
+
+   `both` fill mode matters: without it an element with a delay is painted at
+   its resting state for the delay period and then jumps, which reads as a
+   flicker rather than a fade.
+   ========================================================================== */
+
+@keyframes anim-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes anim-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer utilities {
+  .anim-rise {
+    animation: anim-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .anim-fade {
+    animation: anim-fade 0.35s ease-out both;
+  }
+
+  /* `min()` caps the stagger so a long list does not leave its last rows
+     blank for seconds after the first ones have landed. */
+  .anim-stagger {
+    animation-delay: calc(min(var(--anim-i, 0), 8) * 55ms);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Tab panel transitions
+
+   base-ui tags a panel with `data-starting-style` on the first frame it is
+   shown and keeps it mounted with `data-ending-style` while it leaves, so a
+   CSS transition animates both directions. A keyframe animation cannot: the
+   panel is removed from the DOM once the exit finishes, which would cut the
+   animation off part-way through.
+
+   The global reduced-motion block below already clamps transition-duration, so
+   this needs no separate motion query of its own.
+   -------------------------------------------------------------------------- */
+
+@layer utilities {
+  .tab-panel {
+    transition:
+      opacity 220ms ease,
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .tab-panel[data-starting-style] {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  /* Exits fade only. The outgoing panel is still occupying the tab body while
+     it plays, and a slide underneath an incoming panel that is also sliding
+     reads as a doubled movement rather than a handoff. */
+  .tab-panel[data-ending-style] {
+    opacity: 0;
+  }
+}
+
+/* Respect the OS-level motion preference. The `!important` is required: these
+   rules are unlayered so they beat Tailwind's utilities layer, and a user who
+   asked for reduced motion should never see movement regardless of what a
+   component asked for. */
+@media (prefers-reduced-motion: reduce) {
+  .anim-rise,
+  .anim-fade {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
    Dark mode for the hand-written screens
    ==========================================================================
 

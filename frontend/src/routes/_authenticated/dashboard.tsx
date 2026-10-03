@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   ArrowDown,
@@ -233,7 +233,7 @@ function DashboardPage() {
     <div className="p-4 sm:p-6 lg:p-8 bg-[#F8FAFC] min-h-full">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 max-w-7xl mx-auto w-full">
         <div className="lg:col-span-8 space-y-6 lg:space-y-8">
-          <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 anim-rise">
             <div>
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
                 {greeting()}
@@ -269,7 +269,7 @@ function DashboardPage() {
             </div>
           </header>
 
-          <Card className="bg-gradient-to-b from-blue-50/40 to-indigo-50/20 border-slate-200/70 rounded-2xl sm:rounded-[28px] shadow-sm">
+          <Card className="bg-gradient-to-b from-blue-50/40 to-indigo-50/20 border-slate-200/70 rounded-2xl sm:rounded-[28px] shadow-sm anim-rise">
             <CardContent className="p-5 sm:p-6">
               {isLoadingSettlements ? (
                 <div className="space-y-4">
@@ -322,7 +322,7 @@ function DashboardPage() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-6">
-                    <Card className="shadow-sm border-slate-100 rounded-2xl">
+                    <Card className="shadow-sm border-slate-100 rounded-2xl anim-rise anim-stagger" style={{ '--anim-i': 1 } as CSSProperties}>
                       <CardContent className="p-4 flex items-center justify-between">
                         <div>
                           <span className="text-xs font-semibold text-slate-400">
@@ -338,7 +338,7 @@ function DashboardPage() {
                       </CardContent>
                     </Card>
 
-                    <Card className="shadow-sm border-slate-100 rounded-2xl">
+                    <Card className="shadow-sm border-slate-100 rounded-2xl anim-rise anim-stagger" style={{ '--anim-i': 2 } as CSSProperties}>
                       <CardContent className="p-4 flex items-center justify-between">
                         <div>
                           <span className="text-xs font-semibold text-slate-400">You owe</span>
@@ -376,7 +376,7 @@ function DashboardPage() {
             </CardContent>
           </Card>
 
-          <div>
+          <div className="anim-rise anim-stagger" style={{ '--anim-i': 3 } as CSSProperties}>
             <div className="flex items-center justify-between mb-4 gap-3">
               <h2 className="text-base sm:text-lg font-bold text-slate-900">
                 Recent Activity
@@ -428,7 +428,7 @@ function DashboardPage() {
                     </p>
                   </div>
                 ) : (
-                  recentExpenses.map((expense) => {
+                  recentExpenses.map((expense, index) => {
                     const { Icon, box } = categoryTheme(expense.category_name)
                     const total = parseNum(expense.amount)
                     const net = parseNum(expense.your_paid) - parseNum(expense.your_share)
@@ -438,7 +438,8 @@ function DashboardPage() {
                         key={expense.id}
                         to="/groups/$groupId"
                         params={{ groupId: String(expense.group_id) }}
-                        className="block"
+                        className="block anim-rise anim-stagger"
+                        style={{ '--anim-i': index } as CSSProperties}
                       >
                         <div className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors gap-3">
                           <div className="flex items-center gap-3.5 min-w-0">
@@ -502,7 +503,7 @@ function DashboardPage() {
           />
         </div>
 
-        <div className="lg:col-span-4 space-y-4">
+        <div className="lg:col-span-4 space-y-4 anim-rise anim-stagger" style={{ '--anim-i': 4 } as CSSProperties}>
           <div className="flex items-center justify-between">
             <h2 className="text-base sm:text-lg font-bold text-slate-900">Your Groups</h2>
             <Button
@@ -573,8 +574,14 @@ function DashboardPage() {
                 </CardContent>
               </Card>
             ) : (
-              yourGroups.map((group) => (
-                <GroupCard key={group.id} group={group} />
+              yourGroups.map((group, index) => (
+                <div
+                  key={group.id}
+                  className="anim-rise anim-stagger"
+                  style={{ '--anim-i': index } as CSSProperties}
+                >
+                  <GroupCard group={group} />
+                </div>
               ))
             )}
           </div>
@@ -1027,7 +1034,7 @@ function GroupCard({ group }: { group: UserGroupResponse }) {
       <Card className="border-slate-100 shadow-sm rounded-2xl hover:shadow-md transition-shadow">
         <CardContent className="p-3.5 sm:p-4 flex items-center gap-3">
           <Avatar className="w-11 h-11 rounded-xl shrink-0">
-            <AvatarImage src={group.group_image_url ?? undefined} alt={group.name} />
+            <AvatarImage src={group.group_image_url ?? undefined} alt={group.name} className="rounded-none" />
             <AvatarFallback className="bg-blue-50 text-blue-600 font-bold text-xs rounded-xl">
               {initials(group.name)}
             </AvatarFallback>

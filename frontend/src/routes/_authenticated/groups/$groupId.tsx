@@ -9,7 +9,7 @@ import {
   UserMinus,
   Users as UsersIcon,
 } from 'lucide-react'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type CSSProperties } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
@@ -237,6 +237,16 @@ export function getSettlementSuggestions(group?: {
     amount: parseNum(item.amount),
   }))
 }
+
+// Segmented-control styling for the group tabs. base-ui sets `data-active` on
+// the selected tab (never `data-state="active"`), so every active style must be
+// written as a `data-active:` variant. The base TabsTrigger also applies its own
+// `data-active:bg-background text-foreground` plus a bottom `after:` rule, both
+// of which are overridden here.
+const TAB_TRIGGER_CLASS =
+  'h-auto flex-none rounded-full border-transparent px-4 py-2 text-sm font-semibold text-slate-500 transition-colors hover:text-slate-900 ' +
+  'data-active:bg-white data-active:text-blue-600 data-active:shadow-sm data-active:ring-1 data-active:ring-blue-100 ' +
+  'after:hidden'
 
 function GroupDetailComponent() {
   const { groupId } = Route.useParams()
@@ -492,19 +502,23 @@ function GroupDetailComponent() {
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 bg-slate-50/50 min-h-screen">
-      <GroupHeader
-        name={group.name}
-        description={group.description || 'No description provided'}
-        groupImageUrl={group.group_image_url}
-        onEditGroup={() => setIsEditGroupDialogOpen(true)}
-        onDeleteGroup={() => setIsDeleteGroupDialogOpen(true)}
-        onAddExpense={() => setIsExpenseDialogOpen(true)}
-        onAddMember={() => setIsMemberDialogOpen(true)}
-        canManage={isGroupAdmin}
-      />
+      <div className="anim-rise">
+        <GroupHeader
+          name={group.name}
+          description={group.description || 'No description provided'}
+          groupImageUrl={group.group_image_url}
+          onEditGroup={() => setIsEditGroupDialogOpen(true)}
+          onDeleteGroup={() => setIsDeleteGroupDialogOpen(true)}
+          onAddExpense={() => setIsExpenseDialogOpen(true)}
+          onAddMember={() => setIsMemberDialogOpen(true)}
+          canManage={isGroupAdmin}
+        />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <SummaryCard
+          className="anim-rise anim-stagger"
+          style={{ '--anim-i': 1 } as CSSProperties}
           icon={<Receipt className="h-5 w-5" />}
           label="Total Group Spend"
           value={parseNum(group.summary?.total_expenses)}
@@ -529,9 +543,13 @@ function GroupDetailComponent() {
           badge={
             peopleInvolvedCount > 0 ? 'Needs attention' : 'No dues'
           }
+          className="anim-rise anim-stagger"
+          style={{ '--anim-i': 2 } as CSSProperties}
         />
 
         <SummaryCard
+          className="anim-rise anim-stagger"
+          style={{ '--anim-i': 3 } as CSSProperties}
           icon={<UsersIcon className="h-5 w-5" />}
           label="Members"
           value={members.length}
@@ -672,25 +690,19 @@ function GroupDetailComponent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2 space-y-6">
-          <Tabs defaultValue="expenses" className="w-full">
-            <div className="flex items-end justify-between gap-3 border-b border-slate-200">
-              <TabsList className="bg-transparent p-0 h-auto gap-8 justify-start rounded-none">
-                <TabsTrigger
-                  value="expenses"
-                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-0 pb-3 font-semibold text-slate-500 data-[state=active]:text-blue-600 text-base"
-                >
+          <Tabs defaultValue="expenses" className="w-full anim-rise anim-stagger" style={{ '--anim-i': 4 } as CSSProperties}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {/* base-ui marks the selected tab with `data-active`, not
+                  `data-state="active"`, so the previous variants never matched
+                  and the active tab had no accent at all. */}
+              <TabsList className="h-auto w-auto justify-start gap-1 rounded-full bg-slate-100 p-1">
+                <TabsTrigger value="expenses" className={TAB_TRIGGER_CLASS}>
                   Expenses ({expenses.length})
                 </TabsTrigger>
-                <TabsTrigger
-                  value="balances"
-                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-0 pb-3 font-semibold text-slate-500 data-[state=active]:text-blue-600 text-base"
-                >
+                <TabsTrigger value="balances" className={TAB_TRIGGER_CLASS}>
                   Balances
                 </TabsTrigger>
-                <TabsTrigger
-                  value="members"
-                  className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-0 pb-3 font-semibold text-slate-500 data-[state=active]:text-blue-600 text-base"
-                >
+                <TabsTrigger value="members" className={TAB_TRIGGER_CLASS}>
                   Members ({members.length})
                 </TabsTrigger>
               </TabsList>
@@ -699,7 +711,7 @@ function GroupDetailComponent() {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsCategoryDialogOpen(true)}
-                className="mb-1 gap-2 border-slate-200 px-3 text-slate-600 hover:text-slate-900"
+                className="gap-2 border-slate-200 px-3 text-slate-600 hover:text-slate-900"
                 aria-label="Add an expense category"
                 title="Create a category for organizing group expenses"
               >
@@ -709,7 +721,7 @@ function GroupDetailComponent() {
             </div>
 
             {/* EXPENSES TAB */}
-            <TabsContent value="expenses" className="mt-6 space-y-4">
+            <TabsContent value="expenses" className="tab-panel mt-6 space-y-4">
               {expenses.length === 0 ? (
                 <Card className="p-10 text-center text-slate-500 rounded-2xl border-slate-100 shadow-sm bg-white">
                   <Receipt className="w-10 h-10 mx-auto mb-3 text-slate-300" />
@@ -744,15 +756,20 @@ function GroupDetailComponent() {
                       </p>
                     </Card>
                   ) : (
-                    visibleExpenses.map((expense) => (
-                      <ExpenseListItem
+                    visibleExpenses.map((expense, index) => (
+                      <div
                         key={expense.id}
-                        expense={expense}
-                        currentUserId={currentUserId}
-                        canManage={isGroupAdmin}
-                        onEdit={openEditExpense}
-                        onDelete={setExpenseToDelete}
-                      />
+                        className="anim-rise anim-stagger"
+                        style={{ '--anim-i': index } as CSSProperties}
+                      >
+                        <ExpenseListItem
+                          expense={expense}
+                          currentUserId={currentUserId}
+                          canManage={isGroupAdmin}
+                          onEdit={openEditExpense}
+                          onDelete={setExpenseToDelete}
+                        />
+                      </div>
                     ))
                   )}
                 </>
@@ -760,7 +777,7 @@ function GroupDetailComponent() {
             </TabsContent>
 
             {/* BALANCES TAB */}
-            <TabsContent value="balances" className="mt-6 space-y-6">
+            <TabsContent value="balances" className="tab-panel mt-6 space-y-6">
               {settlementSuggestions.length > 0 && (
                 <Card className="rounded-2xl border-slate-100 border-l-4 border-l-blue-500 shadow-sm bg-white overflow-hidden">
                   <CardContent className="p-5 pb-3">
@@ -897,7 +914,7 @@ function GroupDetailComponent() {
             </TabsContent>
 
             {/* MEMBERS TAB */}
-            <TabsContent value="members" className="mt-6">
+            <TabsContent value="members" className="tab-panel mt-6">
               {members.length === 0 ? (
                 <Card className="p-8 text-center text-slate-500 rounded-2xl border-slate-100 shadow-sm bg-white">
                   No members found in this group.
@@ -992,7 +1009,9 @@ function GroupDetailComponent() {
           </Tabs>
         </div>
 
-        <GroupBalancesCard balances={groupBalances} isLoading={isLoadingGroup} />
+        <div className="anim-rise anim-stagger" style={{ '--anim-i': 5 } as CSSProperties}>
+          <GroupBalancesCard balances={groupBalances} isLoading={isLoadingGroup} />
+        </div>
       </div>
 
       <AlertDialog
