@@ -4,7 +4,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.core.api.responses import api_success
-from apps.groups.selectors import get_group_balance, get_group_for_member, get_user_groups
+from apps.core.services import get_storj_public_url
+from apps.groups.selectors import (
+    get_group_balance,
+    get_group_for_member,
+    get_user_groups,
+)
 from apps.settlements.models import Settlement
 from apps.settlements.services import settlement_create
 
@@ -13,6 +18,13 @@ class UserSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
     email = serializers.EmailField()
+    # Settlements are shown as "who pays whom", so both sides of every row need
+    # a face to be recognisable. Without this the client could only fall back to
+    # coloured initials.
+    profile_image_url = serializers.SerializerMethodField()
+
+    def get_profile_image_url(self, obj):
+        return get_storj_public_url(image_key=obj.profile_imagekey)
 
 
 class GroupSerializer(serializers.Serializer):
